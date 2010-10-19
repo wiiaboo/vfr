@@ -17,6 +17,7 @@ from subprocess import call
 rat = re.compile('(\d+)(?:/|:)(\d+)')
 v1re = re.compile('# timecode format v1')
 v2re = re.compile('# timecode format v2')
+fpsre = re.compile("AssumeFPS\((\d+)\s*,\s*(\d+)\)",re.I)
 tcConv = 'tcConv'
 mkvmerge = 'mkvmerge'
 
@@ -24,7 +25,7 @@ def main():
     
     p = optparse.OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
                               prog='vfr.py',
-                              version='VFR Chapter Creator 0.6.3',
+                              version='VFR Chapter Creator 0.6.4',
                               usage='%prog [options] infile.avs')
     p.add_option('--label', '-l', action="store", help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim", dest="label")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
@@ -42,8 +43,8 @@ def main():
     
     if len(args) < 1:
         p.error("No avisynth script specified.")
-    elif options.timecodes == None and os.path.isfile(args[0] + ".tc.txt") == False and options.fps == None:
-        options.timecodes = '30000/1001'
+    # elif options.timecodes == None and os.path.isfile(args[0] + ".tc.txt") == False and options.fps == None:
+        # options.timecodes = '30000/1001'
     elif options.timecodes == None and os.path.isfile(args[0] + ".tc.txt") == True:
         options.timecodes = args[0] + ".tc.txt"
     elif options.timecodes != None and options.fps != None:
@@ -69,8 +70,36 @@ def main():
     if options.output == None and options.input != None:
         options.output = '%s.%s.mka' % (options.input, args[0][:-4])
     
-    if options.verbose == True:
-        status = """
+    quiet = '' if options.verbose == True else '-q'
+    audio = []
+    Trims = []
+    
+    with open(args[0], "r") as avs:
+        # use only the first non-commented line with trims
+        if options.label != None:
+            trimre = re.compile("(?<!#)%s\((\d+)\s*,\s*(\d+)\)" % options.label)
+        else:
+            trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)",re.I)
+        for line in avs:
+            if trimre.match(line) != None:
+                Trims = trimre.findall(line)
+                break
+        if len(Trims) < 1:
+            sys.exit("Error: Avisynth script has no uncommented trims")
+        
+        # Look for AssumeFPS
+        if options.timecodes == None:
+            avs.seek(0)
+            for line in avs:
+                if fpsre.search(line) != None:
+                    options.timecodes = '/'.join([i for i in fpsre.search(line).groups()])
+                    if options.verbose == True:
+                        print("\nFound AssumeFPS, setting CFR (%s)" % options.timecodes)
+                    break
+            options.timecodes = '30000/1001' if options.timecodes == None else options.timecodes
+        
+        if options.verbose == True:
+            status = """
 Avisynth file:   {input}
 Label:           {label}
 Audio file:      {audio}
@@ -93,26 +122,7 @@ Test Mode:       {test}
             remove=options.remove,
             verbose=options.verbose,
             test=options.test)
-        print(status)
-    
-    quiet = '' if options.verbose == True else '-q'
-    audio = []
-    Trims = []
-    
-    with open(args[0], "r") as avs:
-        # use only the first non-commented line with trims
-        if options.label != None:
-            trimre = re.compile("(?<!#)%s\((\d+)\s*,\s*(\d+)\)" % options.label)
-        else:
-            trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)",re.I)
-        for line in avs:
-            if trimre.match(line) != None:
-                Trims = trimre.findall(line)
-                break
-        if len(Trims) < 1:
-            sys.exit("Error: Avisynth script has no uncommented trims")
-        
-        if options.verbose == True:
+            print(status)
             print('In trims:  {}'.format(', '.join(['({},{})'.format(i[0],i[1]) for i in Trims])))
         
         # trims' offset calculation
@@ -264,14 +274,13 @@ Test Mode:       {test}
 
 def formatTime(ts,tc):
     
-    s = ts // 1000000000 if tc[1] >= 2 else ts // 1000
-    ms = ts % 1000000000 if tc[1] >= 2 else ts % 1000
+    s = ts // 1000 if tc[1] == 1 else ts // 1000000000
+    ms = ts % 1000 if tc[1] == 1 else ts % 1000000000
     m = s // 60
     s = s % 60
     h = m // 60
     m = m % 60
-    
-    return '{0:02d}:{1:02d}:{2:02d}.{3}'.format(h, m, s, ms)
+    return '{0:02d}:{1:02d}:{2:02d}.{3:03d}'.format(h, m, s, ms)
 
 def determineFormat(timecodes):
     """Determines the format of the timecodes provided using regex."""
@@ -327,8 +336,8 @@ def generateChap(start, end, chapter, type):
 			</ChapterDisplay>
 		</ChapterAtom>
 """[1:].format(start,end,chapter,"eng")
-    ogmTxt = 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME=Chapter {0:02d}\n'.format(chapter,start[:-6])
-    x264Txt = '{0} Chapter {1:02d}\n'.format(start[:-6],chapter)
+    ogmTxt = 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME=Chapter {0:02d}\n'.format(chapter,start)
+    x264Txt = '{0} Chapter {1:02d}\n'.format(start,chapter)
     if type == 'MKV':
         return matroskaXml
     elif type == 'OGM':
