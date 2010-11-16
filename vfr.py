@@ -173,7 +173,7 @@ Test Mode:       {test}
     if options.qpfile != None and options.test == None:
         with open(options.qpfile, "w") as qpf:
             for trim in Trims2:
-                qpf.write('%s I -1\n' % trim[0])
+                qpf.write('%s K\n' % trim[0])
     
     # make audio cuts
     if options.input != None:
