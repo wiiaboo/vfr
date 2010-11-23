@@ -70,7 +70,7 @@ def main():
         chapType = ''
     
     if options.output == None and options.input != None:
-        options.output = '%s.%s.mka' % (options.input, args[0][:-4])
+        options.output = '%s.cut.mka' % options.input
     
     quiet = '' if options.verbose == True else '-q'
     audio = []
