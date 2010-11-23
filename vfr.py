@@ -18,6 +18,8 @@ rat = re.compile('(\d+)(?:/|:)(\d+)')
 v1re = re.compile('# timecode format v1')
 v2re = re.compile('# timecode format v2')
 fpsre = re.compile("AssumeFPS\((\d+)\s*,\s*(\d+)\)",re.I)
+
+# change the values here if the programs aren't in your PATH
 tcConv = 'tcConv'
 mkvmerge = 'mkvmerge'
 
