@@ -14,7 +14,7 @@ What it does (for now):
 
 Usage:
 
-vfr.py -i audio.aac -o cutaudio.mka -f 30000/1001 -t timecodes.txt -c chapters.xml -q qpfile.qpf -vmr --test --frames 9001 trims.avs
+vfr.py -i audio.aac -o audio.cut.mka -f 30000/1001 -t timecodes.txt -c chapters.xml -q qpfile.qpf -vmr --test --frames 9001 trims.avs
 
 -i = Audio to be cut (takes whatever mkvmerge takes)
 -o = Cut audio inside .mka
