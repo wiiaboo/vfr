@@ -215,7 +215,7 @@ Test Mode:       {test}
             remove = ['%s.split-%03d.mka' % (options.output, i) for i in range(1,len(audio)+2)]
             if options.verbose == True:
                 print()
-                [print('Deleting: '+i) for i in remove]
+                for i in remove: print('Deleting: %s' % i)
             if options.test == None:
                 [os.unlink(i) if os.path.exists(i) else True for i in remove]
     
