@@ -54,6 +54,8 @@ def main():
         o.timecodes = a[0] + ".tc.txt"
     elif o.timecodes and o.fps:
         p.error("Can't use vfr input AND cfr input")
+    elif o.timecodes and o.ofps:
+        p.error("Can't use ofps with vfr input")
     elif o.timecodes and os.path.isfile(o.timecodes):
         o.timecodes = o.timecodes
     else:
@@ -94,12 +96,14 @@ def main():
                         print("\nFound AssumeFPS, setting CFR (%s)" % o.timecodes)
                     break
 
+    if not o.timecodes: o.timecodes = defaultFps
+
     if o.verbose:
         status =  "Avisynth file:   %s\n" % a[0]
         status += "Label:           %s\n" % o.label if o.label else ""
         status += "Audio file:      %s\n" % o.input if o.input else ""
         status += "Cut Audio file:  %s\n" % o.output if o.output else ""
-        status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.timecodes else ""
+        status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.ofps != o.timecodes else ""
         status += "Chapters file:   %s%s\n" % o.chapters if o.chapters else ""
         status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
         status += "\n"
@@ -113,7 +117,6 @@ def main():
     # trims' offset calculation
     Trims2 = []
     Trims2ts = []
-    if not o.timecodes: o.timecodes = defaultFps
     tcType = determineFormat(o.timecodes)
     tc = o.timecodes
     if tcType == 2:
@@ -144,15 +147,24 @@ def main():
             offsetts = 0
 
         # apply the offset to the trims
-        Trims2.append([fn1-offset,fn2-offset])
-        Trims2ts.append([fn1ts-offsetts,fn2ts-offsetts])
+        fn1 -= offset
+        fn2 -= offset
+        fn1ts -= offsetts
+        fn2ts -= offsetts
+
+        # convert fps if --ofps
+        if o.ofps and o.timecodes != o.ofps:
+            fn1 = unTs(fn1ts,o.ofps)
+            fn2 = unTs(fn2ts,o.ofps)
+
+        # add trims and their timestamps to list
+        Trims2.append([fn1,fn2])
+        Trims2ts.append([fn1ts,fn2ts])
 
         # make list with timecodes to cut audio
         audio.append(formatTime(fn1ts,tcType))
         if len(fn2tsaud) == 1:
             audio.append(formatTime(fn2tsaud[0],tcType))
-
-        # TODO: Implement convertfps
 
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
     if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (formatTime(Trims2ts[i][0],tcType), formatTime(Trims2ts[i][1],tcType)) for i in range(len(Trims2ts))]))
@@ -278,7 +290,7 @@ def Ts(fn,tc,tcType=1):
     # CFR
     if tcType == 1:
         fps = rat.search(tc).groups() if rat.search(tc) else [re.search('(\d+)',tc).group(0),'1']
-        ts = int(round((1000 * fn * int(fps[1])) / int(fps[0])))
+        ts = int(round((1000 * fn * float(fps[1])) / int(fps[0])))
         return [ts,]
     # VFR
     elif tcType >= 2:
@@ -304,6 +316,11 @@ def Ts(fn,tc,tcType=1):
         print("tc needs a list with timecode file and format determined by determineFormat()")
     else:
         sys.exit("Couldn't get timestamps")
+
+def unTs(ts,fps):
+    """Returns a frame number from fps and ofps (ConvertFPS)"""
+    ofps = rat.search(fps).groups() if rat.search(fps) else [re.search('(\d+)',fps).group(0),'1']
+    return int(math.floor(ts / 1000.0 / (float(ofps[1]) / int(ofps[0]))))
 
 def generateChap(start, end, chapter, type):
     """Generates chapters"""
