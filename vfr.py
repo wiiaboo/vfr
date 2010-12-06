@@ -22,6 +22,7 @@ exts = {
     "xml":"MKV",
     "x264.txt":"X264"
 }
+defaultFps = "30000/1001"
 
 # Change the paths here if the programs aren't in your $PATH
 tcConv = r'tcConv'
@@ -71,8 +72,9 @@ def main():
     audio = []
     Trims = []
 
-    with open(a[0], "r") as avs:
+    with open(a[0], "r") as avsfile:
         # use only the first non-commented line with trims
+        avs = avsfile.readlines()
         if o.label:
             trimre = re.compile("(?<!#)%s\((\d+)\s*,\s*(\d+)\)" % o.label)
         else:
@@ -86,14 +88,13 @@ def main():
 
         # Look for AssumeFPS
         if not o.timecodes:
-            avs.seek(0)
             for line in avs:
                 if fpsre.search(line):
                     o.timecodes = '/'.join([i for i in fpsre.search(line).groups()])
                     if o.verbose:
                         print("\nFound AssumeFPS, setting CFR (%s)" % o.timecodes)
                     break
-            if not o.timecodes: o.timecodes = '30000/1001'
+            if not o.timecodes: o.timecodes = defaultFps
 
         if o.verbose:
             status = """
