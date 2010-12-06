@@ -68,7 +68,7 @@ def main():
         chapType = ''
 
     if options.output == None and options.input != None:
-        options.output = '%s.cut.mka' % options.input[-3:]
+        options.output = '%s.cut.mka' % re.search("(.*)\.\w*$",options.input).group(1)
 
     quiet = '' if options.verbose == True else '-q'
     audio = []
