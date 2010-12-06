@@ -286,7 +286,7 @@ def Ts(fn,tc):
     # CFR
     if tc[1] == 1:
         fps = rat.search(tc[0]).groups() if rat.search(tc[0]) else [re.search('(\d+)',tc[0]).group(0),'1']
-        ts = round((1000 * fn * int(fps[1])) / int(fps[0]))
+        ts = int(round((1000 * fn * int(fps[1])) / int(fps[0])))
         return [ts,]
     # VFR
     elif tc[1] >= 2:
