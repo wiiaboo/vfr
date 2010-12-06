@@ -28,7 +28,7 @@ tcConv = 'tcConv'
 mkvmerge = 'mkvmerge'
 
 def main():
-    
+
     p = optparse.OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
                               prog='vfr.py',
                               version='VFR Chapter Creator 0.6.4',
@@ -46,7 +46,7 @@ def main():
     p.add_option('--frames', action="store", help='Number of frames for v1 conversion', dest="frames")
     p.add_option('--test', action="store_true", help="Test mode (do not create new files)", dest="test")
     (options, args) = p.parse_args()
-    
+
     if len(args) < 1:
         p.error("No avisynth script specified.")
     # elif options.timecodes == None and os.path.isfile(args[0] + ".tc.txt") == False and options.fps == None:
@@ -69,11 +69,11 @@ def main():
 
     if options.output == None and options.input != None:
         options.output = '%s.cut.mka' % options.input[-3:]
-    
+
     quiet = '' if options.verbose == True else '-q'
     audio = []
     Trims = []
-    
+
     with open(args[0], "r") as avs:
         # use only the first non-commented line with trims
         if options.label != None:
@@ -86,7 +86,7 @@ def main():
                 break
         if len(Trims) < 1:
             sys.exit("Error: Avisynth script has no uncommented trims")
-        
+
         # Look for AssumeFPS
         if options.timecodes == None:
             avs.seek(0)
@@ -97,7 +97,7 @@ def main():
                         print("\nFound AssumeFPS, setting CFR (%s)" % options.timecodes)
                     break
             options.timecodes = '30000/1001' if options.timecodes == None else options.timecodes
-        
+
         if options.verbose == True:
             status = """
 Avisynth file:   {input}
@@ -125,7 +125,7 @@ Test Mode:       {test}
             test=options.test)
             print(status)
             print('In trims:  {}'.format(', '.join(['({},{})'.format(i[0],i[1]) for i in Trims])))
-        
+
         # trims' offset calculation
         Trims2 = []
         Trims2ts = []
@@ -138,14 +138,14 @@ Test Mode:       {test}
                 if tcConv > 0:
                     sys.exit("Failed to execute tcConv: %d; Please put it in your path" % tcConv)
             options.timecodes[0] = tc[0]+"v2.txt"
+
         for i in range(len(Trims)):
-        
             fn1 = int(Trims[i][0])              # first frame
             fn1ts = Ts(fn1,tc)[0]   # first frame timecode
             fn2 = int(Trims[i][1])              # last frame
             fn2ts = Ts(fn2,tc)[0]   # last frame timecode
             fn2tsaud = Ts(fn2+1,tc) # last frame timecode for audio
-                        
+
             if i != 0:      # if it's not the first trim
                 last = int(Trims[i-1][1])+1
                 lastts = Ts(last,tc)[0]
@@ -157,25 +157,25 @@ Test Mode:       {test}
             else:
                 offset = 0
                 offsetts = 0
-            
+
             # apply the offset to the trims
             Trims2.append([fn1-offset,fn2-offset])
             Trims2ts.append([fn1ts-offsetts,fn2ts-offsetts])
-            
+
             # make list with timecodes to cut audio
             audio.append(formatTime(fn1ts,tc))
             if len(fn2tsaud) == 1:
                 audio.append(formatTime(fn2tsaud[0],tc))
-    
+
     if options.verbose == True:
         print('Out trims: {}'.format(', '.join(['({},{})'.format(i[0],i[1]) for i in Trims2])))
-    
+
     # make qpfile
     if options.qpfile != None and options.test == None:
         with open(options.qpfile, "w") as qpf:
             for trim in Trims2:
                 qpf.write('%s K\n' % trim[0])
-    
+
     # make audio cuts
     if options.input != None:
         delay = re.search('DELAY ([-]?\d+)',options.input).group(1) if re.search('DELAY ([-]?\d+)',options.input) != None else '0'
@@ -209,7 +209,7 @@ Test Mode:       {test}
                     print("Mkvmerge exited with warnings: %d" % mergeExec)
                 elif mergeExec == 2:
                     sys.exit("Failed to execute mkvmerge: %d" % mergeExec)
-        
+
         if options.remove == True:
             remove = ['%s.split-%03d.mka' % (options.output, i) for i in range(1,len(audio)+2)]
             if options.verbose == True:
@@ -217,7 +217,7 @@ Test Mode:       {test}
                 for i in remove: print('Deleting: %s' % i)
             if options.test == None:
                 [os.unlink(i) if os.path.exists(i) else True for i in remove]
-    
+
     if chapparseExists == True:
         # make offseted avs
         if len(args) > 1:
@@ -237,7 +237,7 @@ Test Mode:       {test}
 """.format(0,1,1,EditionUID)
         matroskaXmlEditionFooter = '	</EditionEntry>'
         matroskaXmlFooter = '\n</Chapters>'
-        
+
         matroskaXmlTagsHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Tags>'
         matroskaXmlTagsEdition = """
 	<Tag>
@@ -252,21 +252,16 @@ Test Mode:       {test}
 			<TagLanguage>{}</TagLanguage>
 			<DefaultLanguage>1</DefaultLanguage>
 		</Simple>
-    
+
 	</Tag>""".format(EditionUID,"Default","eng")
-    
+
     if options.test == None and chapType != '':
         with open(options.chapters, "w") as output:
-            
             if chapType == 'MKV':
                 output.write(matroskaXmlHeader)
-                
                 output.write(matroskaXmlEditionHeader)
-            
                 [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
-                
                 output.write(matroskaXmlEditionFooter)
-                
                 output.write(matroskaXmlFooter)
             else:
                 [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
@@ -274,7 +269,7 @@ Test Mode:       {test}
         print("Writing {} Chapters to {}".format(chapType,options.chapters))
 
 def formatTime(ts,tc):
-    
+
     s = ts // 1000 if tc[1] == 1 else ts // 1000000000
     ms = ts % 1000 if tc[1] == 1 else ts % 1000000000
     m = s // 60
