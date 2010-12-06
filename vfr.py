@@ -114,26 +114,26 @@ def main():
     Trims2 = []
     Trims2ts = []
     if not o.timecodes: o.timecodes = defaultFps
-    o.timecodes = [o.timecodes, determineFormat(o.timecodes)]
+    tcType = determineFormat(o.timecodes)
     tc = o.timecodes
-    if tc[1] == 2:
+    if tcType == 2:
         nTrims = int(o.frames) if o.frames else int(Trims[-1][1])+2
-        if os.path.isfile(tc[0]+"v2.txt") == False:
-            tcConv = call('"%s" "%s" "%s" %d' % (tcConv, tc[0], tc[0]+"v2.txt", nTrims))
+        if os.path.isfile(tc+"v2.txt") == False:
+            tcConv = call('"%s" "%s" "%s" %d' % (tcConv, tc, tc+"v2.txt", nTrims))
             if tcConv > 0:
                 sys.exit("Failed to execute tcConv: %d; Please put it in your path" % tcConv)
-        o.timecodes[0] = tc[0]+"v2.txt"
+        o.timecodes = tc+"v2.txt"
 
     for i in range(len(Trims)):
-        fn1 = int(Trims[i][0])  # first frame
-        fn1ts = Ts(fn1,tc)[0]   # first frame timestamp
-        fn2 = int(Trims[i][1])  # last frame
-        fn2ts = Ts(fn2,tc)[0]   # last frame timestamp
-        fn2tsaud = Ts(fn2+1,tc) # last frame timestamp for audio
+        fn1 = int(Trims[i][0])         # first frame
+        fn1ts = Ts(fn1,tc,tcType)[0]   # first frame timestamp
+        fn2 = int(Trims[i][1])         # last frame
+        fn2ts = Ts(fn2,tc,tcType)[0]   # last frame timestamp
+        fn2tsaud = Ts(fn2+1,tc,tcType) # last frame timestamp for audio
 
         if i != 0:      # if it's not the first trim
             last = int(Trims[i-1][1])+1
-            lastts = Ts(last,tc)[0]
+            lastts = Ts(last,tc,tcType)[0]
             offset += fn1-last
             offsetts += fn1ts-lastts
         elif fn1 > 0:   # if the first trim doesn't start at 0
@@ -148,12 +148,14 @@ def main():
         Trims2ts.append([fn1ts-offsetts,fn2ts-offsetts])
 
         # make list with timecodes to cut audio
-        audio.append(formatTime(fn1ts,tc))
+        audio.append(formatTime(fn1ts,tcType))
         if len(fn2tsaud) == 1:
-            audio.append(formatTime(fn2tsaud[0],tc))
+            audio.append(formatTime(fn2tsaud[0],tcType))
+
+        # TODO: Implement convertfps
 
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
-    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc)) for i in range(len(Trims2ts))]))
+    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (formatTime(Trims2ts[i][0],tcType), formatTime(Trims2ts[i][1],tcType)) for i in range(len(Trims2ts))]))
 
     # make qpfile
     if o.qpfile:
@@ -246,18 +248,18 @@ def main():
                 if chapType == 'MKV':
                     output.write(matroskaXmlHeader)
                     output.write(matroskaXmlEditionHeader)
-                    [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
+                    [output.write(generateChap(formatTime(Trims2ts[i][0],tcType), formatTime(Trims2ts[i][1],tcType),i+1,chapType)) for i in range(len(Trims2ts))]
                     output.write(matroskaXmlEditionFooter)
                     output.write(matroskaXmlFooter)
                 else:
-                    [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
+                    [output.write(generateChap(formatTime(Trims2ts[i][0],tcType), formatTime(Trims2ts[i][1],tcType),i+1,chapType)) for i in range(len(Trims2ts))]
         if o.verbose:
             print("Writing {} Chapters to {}".format(chapType,o.chapters))
 
-def formatTime(ts,tc):
+def formatTime(ts,tcType):
     """Converts timestamps to timecodes"""
-    s = ts // 1000 if tc[1] == 1 else ts // 1000000000
-    ms = ts % 1000 if tc[1] == 1 else ts % 1000000000
+    s = ts // 1000 if tcType == 1 else ts // 1000000000
+    ms = ts % 1000 if tcType == 1 else ts % 1000000000
     m = s // 60
     s = s % 60
     h = m // 60
@@ -271,28 +273,28 @@ def determineFormat(timecodes):
     elif v2re.match(linecache.getline(timecodes,1)): return 3
     else: return 0
 
-def Ts(fn,tc):
+def Ts(fn,tc,tcType=1):
     """Returns timestamps (in ms) from a frame number and timecodes file."""
     # CFR
-    if tc[1] == 1:
-        fps = rat.search(tc[0]).groups() if rat.search(tc[0]) else [re.search('(\d+)',tc[0]).group(0),'1']
+    if tcType == 1:
+        fps = rat.search(tc).groups() if rat.search(tc) else [re.search('(\d+)',tc).group(0),'1']
         ts = int(round((1000 * fn * int(fps[1])) / int(fps[0])))
         return [ts,]
     # VFR
-    elif tc[1] >= 2:
-        ts = linecache.getline(tc[0],fn+2)
+    elif tcType >= 2:
+        ts = linecache.getline(tc,fn+2)
         if ts == '':
             lines = 0
-            with open(tc[0],"r") as file:
+            with open(tc,"r") as file:
                 for line in file:
                     lines += 1
             nLines = math.ceil(lines / 100)
             average = 0
             for i in range(nLines):
-                average += (int(float(linecache.getline(tc[0],lines-i))*1000000) - int(float(linecache.getline(tc[0],lines-i-1))*1000000))
+                average += (int(float(linecache.getline(tc,lines-i))*1000000) - int(float(linecache.getline(tc,lines-i-1))*1000000))
             average = average / nLines
-            lastTs = int(float(linecache.getline(tc[0],lines))*1000000)
-            secdTs = int(float(linecache.getline(tc[0],lines-1))*1000000)
+            lastTs = int(float(linecache.getline(tc,lines))*1000000)
+            secdTs = int(float(linecache.getline(tc,lines-1))*1000000)
             ts = int(fn * average)
             if fn != lines-1:
                 print("Warning: Trim {} goes beyond last frame. Audio cutting not recommended.".format(fn))
