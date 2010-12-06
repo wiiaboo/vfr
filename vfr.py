@@ -31,12 +31,13 @@ mkvmerge = r'mkvmerge'
 def main():
 
     p = optparse.OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
-                              version='VFR Chapter Creator 0.7',
+                              version='VFR Chapter Creator 0.7.1',
                               usage='%prog [options] infile.avs{}'.format(" [outfile.avs]" if chapparseExists else ""))
     p.add_option('--label', '-l', action="store", help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim", dest="label")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
     p.add_option('--fps', '-f', action="store", help='Frames per second (for cfr input)', dest="fps")
+    p.add_option('--ofps', action="store", help='Output frames per second', dest="ofps")
     p.add_option('--timecodes', '-t', action="store", help='Timecodes file from the vfr video (v1 needs tcConv)', dest="timecodes")
     p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
     p.add_option('--qpfile', '-q', action="store", help='QPFile for x264 (frame-accurate only if used with final framecount)', dest="qpfile")
@@ -94,39 +95,27 @@ def main():
                     if o.verbose:
                         print("\nFound AssumeFPS, setting CFR (%s)" % o.timecodes)
                     break
-            if not o.timecodes: o.timecodes = defaultFps
 
         if o.verbose:
-            status = """
-Avisynth file:   {input}
-Label:           {label}
-Audio file:      {audio}
-Cut Audio file:  {cutaudio}
-Timecodes/FPS:   {timecodes}
-Chapters file:   {chapters} ({cType})
-QP file:         {qpfile}
+            status =  "Avisynth file:   %s\n" % a[0]
+            status += "Label:           %s\n" % o.label if o.label else ""
+            status += "Audio file:      %s\n" % o.input if o.input else ""
+            status += "Cut Audio file:  %s\n" % o.output if o.output else ""
+            status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.timecodes else ""
+            status += "Chapters file:   %s%s\n" % o.chapters if o.chapters else ""
+            status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
+            status += "\n"
+            status += "Merge/Rem files: %s/%s\n" % (o.merge,o.remove) if o.merge or o.remove else ""
+            status += "Verbose:         %s\n" % o.verbose if o.verbose else ""
+            status += "Test Mode:       %s\n" % o.test if o.test else ""
 
-Merge/Rem files: {merge}/{remove}
-Verbose:         {verbose}
-Test Mode:       {test}
-""".format(input=a[0],
-            audio=o.input,
-            label=o.label,
-            cutaudio=o.output,
-            timecodes=o.timecodes,
-            chapters=o.chapters,
-            cType=chapType,
-            qpfile=o.qpfile,
-            merge=o.merge,
-            remove=o.remove,
-            verbose=o.verbose,
-            test=o.test)
             print(status)
             print('In trims: %s' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
 
         # trims' offset calculation
         Trims2 = []
         Trims2ts = []
+        if not o.timecodes: o.timecodes = defaultFps
         o.timecodes = [o.timecodes, determineFormat(o.timecodes)]
         tc = o.timecodes
         if tc[1] == 2:
@@ -166,6 +155,7 @@ Test Mode:       {test}
                 audio.append(formatTime(fn2tsaud[0],tc))
 
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
+    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc)) for i in range(len(Trims2ts))]))
 
     # make qpfile
     if o.qpfile:
