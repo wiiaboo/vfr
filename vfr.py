@@ -23,16 +23,15 @@ exts = {
     "x264.txt":"X264"
 }
 
-# change the values here if the programs aren't in your PATH
-tcConv = 'tcConv'
-mkvmerge = 'mkvmerge'
+# Change the paths here if the programs aren't in your $PATH
+tcConv = r'tcConv'
+mkvmerge = r'mkvmerge'
 
 def main():
 
     p = optparse.OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
-                              prog='vfr.py',
                               version='VFR Chapter Creator 0.6.4',
-                              usage='%prog [options] infile.avs')
+                              usage='%prog [options] infile.avs{}'.format(" [outfile.avs]" if chapparseExists else ""))
     p.add_option('--label', '-l', action="store", help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim", dest="label")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
@@ -45,60 +44,58 @@ def main():
     p.add_option('--remove', '-r', action="store_true", help='Remove cut files', dest="remove")
     p.add_option('--frames', action="store", help='Number of frames for v1 conversion', dest="frames")
     p.add_option('--test', action="store_true", help="Test mode (do not create new files)", dest="test")
-    (options, args) = p.parse_args()
+    (o, a) = p.parse_args()
 
-    if len(args) < 1:
+    if len(a) < 1:
         p.error("No avisynth script specified.")
-    # elif options.timecodes == None and os.path.isfile(args[0] + ".tc.txt") == False and options.fps == None:
-        # options.timecodes = '30000/1001'
-    elif options.timecodes == None and os.path.isfile(args[0] + ".tc.txt") == True:
-        options.timecodes = args[0] + ".tc.txt"
-    elif options.timecodes != None and options.fps != None:
+    elif not o.timecodes and os.path.isfile(a[0] + ".tc.txt"):
+        o.timecodes = a[0] + ".tc.txt"
+    elif o.timecodes and o.fps:
         p.error("Can't use vfr input AND cfr input")
-    elif options.timecodes != None and os.path.isfile(options.timecodes) == True:
-        options.timecodes = options.timecodes
+    elif o.timecodes and os.path.isfile(o.timecodes):
+        o.timecodes = o.timecodes
     else:
-        options.timecodes = options.fps
+        o.timecodes = o.fps
 
     #Determine chapter type
-    if options.chapters:
-        cExt = re.search("\.(%s)" % "|".join(exts.keys()),options.chapters,re.I)
+    if o.chapters:
+        cExt = re.search("\.(%s)" % "|".join(exts.keys()),o.chapters,re.I)
         chapType = exts[cExt.group(1).lower()] if cExt else "OGM"
     else:
         chapType = ''
 
-    if options.output == None and options.input != None:
-        options.output = '%s.cut.mka' % re.search("(.*)\.\w*$",options.input).group(1)
+    if not o.output and o.input:
+        o.output = '%s.cut.mka' % re.search("(.*)\.\w*$",o.input).group(1)
 
-    quiet = '' if options.verbose == True else '-q'
+    quiet = '' if o.verbose else '-q'
     audio = []
     Trims = []
 
-    with open(args[0], "r") as avs:
+    with open(a[0], "r") as avs:
         # use only the first non-commented line with trims
-        if options.label != None:
-            trimre = re.compile("(?<!#)%s\((\d+)\s*,\s*(\d+)\)" % options.label)
+        if o.label:
+            trimre = re.compile("(?<!#)%s\((\d+)\s*,\s*(\d+)\)" % o.label)
         else:
             trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)",re.I)
         for line in avs:
-            if trimre.match(line) != None:
+            if trimre.match(line):
                 Trims = trimre.findall(line)
                 break
         if len(Trims) < 1:
             sys.exit("Error: Avisynth script has no uncommented trims")
 
         # Look for AssumeFPS
-        if options.timecodes == None:
+        if not o.timecodes:
             avs.seek(0)
             for line in avs:
-                if fpsre.search(line) != None:
-                    options.timecodes = '/'.join([i for i in fpsre.search(line).groups()])
-                    if options.verbose == True:
-                        print("\nFound AssumeFPS, setting CFR (%s)" % options.timecodes)
+                if fpsre.search(line):
+                    o.timecodes = '/'.join([i for i in fpsre.search(line).groups()])
+                    if o.verbose:
+                        print("\nFound AssumeFPS, setting CFR (%s)" % o.timecodes)
                     break
-            options.timecodes = '30000/1001' if options.timecodes == None else options.timecodes
+            if not o.timecodes: o.timecodes = '30000/1001'
 
-        if options.verbose == True:
+        if o.verbose:
             status = """
 Avisynth file:   {input}
 Label:           {label}
@@ -111,38 +108,38 @@ QP file:         {qpfile}
 Merge/Rem files: {merge}/{remove}
 Verbose:         {verbose}
 Test Mode:       {test}
-""".format(input=args[0],
-            audio=options.input,
-            label=options.label,
-            cutaudio=options.output,
-            timecodes=options.timecodes,
-            chapters=options.chapters,
+""".format(input=a[0],
+            audio=o.input,
+            label=o.label,
+            cutaudio=o.output,
+            timecodes=o.timecodes,
+            chapters=o.chapters,
             cType=chapType,
-            qpfile=options.qpfile,
-            merge=options.merge,
-            remove=options.remove,
-            verbose=options.verbose,
-            test=options.test)
+            qpfile=o.qpfile,
+            merge=o.merge,
+            remove=o.remove,
+            verbose=o.verbose,
+            test=o.test)
             print(status)
-            print('In trims:  {}'.format(', '.join(['({},{})'.format(i[0],i[1]) for i in Trims])))
+            print('In trims: %s' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
 
         # trims' offset calculation
         Trims2 = []
         Trims2ts = []
-        options.timecodes = [options.timecodes, determineFormat(options.timecodes)]
-        tc = options.timecodes
+        o.timecodes = [o.timecodes, determineFormat(o.timecodes)]
+        tc = o.timecodes
         if tc[1] == 2:
-            nTrims = int(options.frames) if options.frames != None else int(Trims[-1][1])+2
+            nTrims = int(o.frames) if o.frames else int(Trims[-1][1])+2
             if os.path.isfile(tc[0]+"v2.txt") == False:
                 tcConv = call('"%s" "%s" "%s" %d' % (tcConv, tc[0], tc[0]+"v2.txt", nTrims))
                 if tcConv > 0:
                     sys.exit("Failed to execute tcConv: %d; Please put it in your path" % tcConv)
-            options.timecodes[0] = tc[0]+"v2.txt"
+            o.timecodes[0] = tc[0]+"v2.txt"
 
         for i in range(len(Trims)):
-            fn1 = int(Trims[i][0])              # first frame
+            fn1 = int(Trims[i][0])  # first frame
             fn1ts = Ts(fn1,tc)[0]   # first frame timecode
-            fn2 = int(Trims[i][1])              # last frame
+            fn2 = int(Trims[i][1])  # last frame
             fn2ts = Ts(fn2,tc)[0]   # last frame timecode
             fn2tsaud = Ts(fn2+1,tc) # last frame timecode for audio
 
@@ -167,42 +164,42 @@ Test Mode:       {test}
             if len(fn2tsaud) == 1:
                 audio.append(formatTime(fn2tsaud[0],tc))
 
-    if options.verbose == True:
-        print('Out trims: {}'.format(', '.join(['({},{})'.format(i[0],i[1]) for i in Trims2])))
+    if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
 
     # make qpfile
-    if options.qpfile != None and options.test == None:
-        with open(options.qpfile, "w") as qpf:
-            for trim in Trims2:
-                qpf.write('%s K\n' % trim[0])
+    if o.qpfile:
+        if not o.test:
+            with open(o.qpfile, "w") as qpf:
+                for trim in Trims2[1:]:
+                    qpf.write('%s K\n' % trim[0])
+        if o.verbose: print('Writing keyframes to %s\n' % o.qpfile)
 
     # make audio cuts
-    if options.input != None:
-        delay = re.search('DELAY ([-]?\d+)',options.input).group(1) if re.search('DELAY ([-]?\d+)',options.input) != None else '0'
-        if audio[0] == "00:00:00.000000000":
+    if o.input:
+        delayRe = re.search('DELAY ([-]?\d+)',o.input)
+        delay = delayRe.group(1) if delayRe else '0'
+        if audio[0] == "00:00:00.000":
             includefirst = True
             audio = audio[1:]
         else:
             includefirst = False
         cuttimes = ','.join(audio)
-        cutCmd = '"%s" -o "%s" --sync 0:%s "%s" --split timecodes:%s %s' % (mkvmerge, options.output + '.split.mka', delay, options.input, cuttimes, quiet)
-        if options.verbose == True:
-            print('Cutting: %s\n' % cutCmd)
-        if options.test == None:
+        cutCmd = '"%s" -o "%s" --sync 0:%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, o.input, cuttimes, quiet)
+        if o.verbose: print('Cutting: %s\n' % cutCmd)
+        if not o.test:
             cutExec = call(cutCmd)
             if cutExec == 1:
                 print("Mkvmerge exited with warnings: %d" % cutExec)
             elif cutExec == 2:
                 sys.exit("Failed to execute mkvmerge: %d" % cutExec)
-        if options.merge == True:
+        if o.merge:
             merge = []
             for i in range(1,len(audio)+2):
                 if (includefirst == True and i % 2 != 0) or (includefirst == False and i % 2 == 0):
-                    merge.append('"%s.split-%03d.mka"' % (options.output, i))
-            mergeCmd = '"%s" -o "%s" %s %s' % (mkvmerge,options.output, ' +'.join(merge), quiet)
-            if options.verbose == True:
-                print('Merging: %s\n' % ' +'.join(merge))
-            if options.test == None:
+                    merge.append('"%s.split-%03d.mka"' % (o.output, i))
+            mergeCmd = '"%s" -o "%s" %s %s' % (mkvmerge,o.output, ' +'.join(merge), quiet)
+            if o.verbose: print('\nMerging: %s\n' % ', '.join(merge))
+            if not o.test:
                 print(mergeCmd)
                 mergeExec = call(mergeCmd)
                 if mergeExec == 1:
@@ -210,36 +207,35 @@ Test Mode:       {test}
                 elif mergeExec == 2:
                     sys.exit("Failed to execute mkvmerge: %d" % mergeExec)
 
-        if options.remove == True:
-            remove = ['%s.split-%03d.mka' % (options.output, i) for i in range(1,len(audio)+2)]
-            if options.verbose == True:
-                print()
-                for i in remove: print('Deleting: %s' % i)
-            if options.test == None:
+        if o.remove:
+            remove = ['%s.split-%03d.mka' % (o.output, i) for i in range(1,len(audio)+2)]
+            if o.verbose: print('\nDeleting: %s\n' % ', '.join(remove))
+            if not o.test:
                 [os.unlink(i) if os.path.exists(i) else True for i in remove]
 
-    if chapparseExists == True:
-        # make offseted avs
-        if len(args) > 1:
-            fNum = [i[0] for i in Trims2]
-            set = {'avs':'"'+args[1]+'"','input':'','resize':''}
-            writeAvisynth(set,fNum)
+    # make offseted avs
+    if chapparseExists and len(a) > 1:
+        fNum = [i[0] for i in Trims2]
+        set = {'avs':'"'+a[1]+'"','input':'','resize':''}
+        writeAvisynth(set,fNum)
 
-    if chapType == 'MKV':
-        EditionUID = random.randint(100000,1000000)
-        matroskaXmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Chapters>'
-        matroskaXmlEditionHeader = """
+    if chapType:
+
+        if chapType == 'MKV':
+            EditionUID = random.randint(100000,1000000)
+            matroskaXmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Chapters>'
+            matroskaXmlEditionHeader = """
 	<EditionEntry>
 		<EditionFlagHidden>{}</EditionFlagHidden>
 		<EditionFlagDefault>{}</EditionFlagDefault>
 		<EditionFlagOrdered>{}</EditionFlagOrdered>
 		<EditionUID>{}</EditionUID>
 """.format(0,1,1,EditionUID)
-        matroskaXmlEditionFooter = '	</EditionEntry>'
-        matroskaXmlFooter = '\n</Chapters>'
+            matroskaXmlEditionFooter = '	</EditionEntry>'
+            matroskaXmlFooter = '\n</Chapters>'
 
-        matroskaXmlTagsHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Tags>'
-        matroskaXmlTagsEdition = """
+            matroskaXmlTagsHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Tags>'
+            matroskaXmlTagsEdition = """
 	<Tag>
 		<Targets>
 			<EditionUID>{}</EditionUID>
@@ -255,8 +251,8 @@ Test Mode:       {test}
 
 	</Tag>""".format(EditionUID,"Default","eng")
 
-    if options.test == None and chapType != '':
-        with open(options.chapters, "w") as output:
+    if not o.test:
+        with open(o.chapters, "w") as output:
             if chapType == 'MKV':
                 output.write(matroskaXmlHeader)
                 output.write(matroskaXmlEditionHeader)
@@ -265,11 +261,11 @@ Test Mode:       {test}
                 output.write(matroskaXmlFooter)
             else:
                 [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
-    elif chapType != '':
-        print("Writing {} Chapters to {}".format(chapType,options.chapters))
+    if o.verbose:
+        print("Writing {} Chapters to {}".format(chapType,o.chapters))
 
 def formatTime(ts,tc):
-
+    """Converts timestamps to timecodes"""
     s = ts // 1000 if tc[1] == 1 else ts // 1000000000
     ms = ts % 1000 if tc[1] == 1 else ts % 1000000000
     m = s // 60
@@ -280,14 +276,10 @@ def formatTime(ts,tc):
 
 def determineFormat(timecodes):
     """Determines the format of the timecodes provided using regex."""
-    if rat.match(timecodes) != None or re.match('^\d+$',timecodes) != None:
-        return 1
-    elif v1re.match(linecache.getline(timecodes,1)):
-        return 2
-    elif v2re.match(linecache.getline(timecodes,1)):
-        return 3
-    else:
-        return 0
+    if rat.match(timecodes) or re.match('^\d+$',timecodes): return 1
+    elif v1re.match(linecache.getline(timecodes,1)): return 2
+    elif v2re.match(linecache.getline(timecodes,1)): return 3
+    else: return 0
 
 def Ts(fn,tc):
     """Returns timestamps (in ms) from a frame number and timecodes file."""
@@ -322,7 +314,10 @@ def Ts(fn,tc):
         sys.exit("Couldn't get timestamps")
 
 def generateChap(start, end, chapter, type):
-    matroskaXml = """
+    """Generates chapters"""
+    # Matroska
+    if type == 'MKV':
+        return """
 		<ChapterAtom>
 			<ChapterTimeStart>{}</ChapterTimeStart>
 			<ChapterTimeEnd>{}</ChapterTimeEnd>
@@ -332,14 +327,12 @@ def generateChap(start, end, chapter, type):
 			</ChapterDisplay>
 		</ChapterAtom>
 """[1:].format(start,end,chapter,"eng")
-    ogmTxt = 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME=Chapter {0:02d}\n'.format(chapter,start)
-    x264Txt = '{0} Chapter {1:02d}\n'.format(start,chapter)
-    if type == 'MKV':
-        return matroskaXml
+    # OGM
     elif type == 'OGM':
-        return ogmTxt
+        return 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME=Chapter {0:02d}\n'.format(chapter,start)
+    # X264
     elif type == 'X264':
-        return x264Txt
+        return '{0} Chapter {1:02d}\n'.format(start,chapter)
 
 if __name__ == '__main__':
     main()
