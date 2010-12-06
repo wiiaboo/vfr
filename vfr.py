@@ -138,10 +138,10 @@ Test Mode:       {test}
 
         for i in range(len(Trims)):
             fn1 = int(Trims[i][0])  # first frame
-            fn1ts = Ts(fn1,tc)[0]   # first frame timecode
+            fn1ts = Ts(fn1,tc)[0]   # first frame timestamp
             fn2 = int(Trims[i][1])  # last frame
-            fn2ts = Ts(fn2,tc)[0]   # last frame timecode
-            fn2tsaud = Ts(fn2+1,tc) # last frame timecode for audio
+            fn2ts = Ts(fn2,tc)[0]   # last frame timestamp
+            fn2tsaud = Ts(fn2+1,tc) # last frame timestamp for audio
 
             if i != 0:      # if it's not the first trim
                 last = int(Trims[i-1][1])+1
@@ -219,6 +219,7 @@ Test Mode:       {test}
         set = {'avs':'"'+a[1]+'"','input':'','resize':''}
         writeAvisynth(set,fNum)
 
+    # write chapters
     if chapType:
 
         if chapType == 'MKV':
