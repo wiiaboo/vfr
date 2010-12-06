@@ -17,7 +17,7 @@ from subprocess import call
 rat = re.compile('(\d+)(?:/|:)(\d+)')
 v1re = re.compile('# timecode format v1')
 v2re = re.compile('# timecode format v2')
-fpsre = re.compile("AssumeFPS\((\d+)\s*,\s*(\d+)\)",re.I)
+fpsre = re.compile("(?<!#)AssumeFPS\((\d+)\s*,\s*(\d+)\)(?i)")
 exts = {
     "xml":"MKV",
     "x264.txt":"X264"
@@ -76,12 +76,10 @@ def main():
     with open(a[0], "r") as avsfile:
         # use only the first non-commented line with trims
         avs = avsfile.readlines()
-        if o.label:
-            trimre = re.compile("(?<!#)%s\((\d+)\s*,\s*(\d+)\)" % o.label)
-        else:
-            trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)",re.I)
+        findTrims = re.compile("(?<!#)[^#]*\s*\.?\s*%s\((\d+)\s*,\s*(\d+)\)%s" % (o.label if o.label else "trim","" if o.label else "(?i)"))
+        trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
         for line in avs:
-            if trimre.match(line):
+            if findTrims.match(line):
                 Trims = trimre.findall(line)
                 break
         if len(Trims) < 1:
@@ -96,63 +94,63 @@ def main():
                         print("\nFound AssumeFPS, setting CFR (%s)" % o.timecodes)
                     break
 
-        if o.verbose:
-            status =  "Avisynth file:   %s\n" % a[0]
-            status += "Label:           %s\n" % o.label if o.label else ""
-            status += "Audio file:      %s\n" % o.input if o.input else ""
-            status += "Cut Audio file:  %s\n" % o.output if o.output else ""
-            status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.timecodes else ""
-            status += "Chapters file:   %s%s\n" % o.chapters if o.chapters else ""
-            status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
-            status += "\n"
-            status += "Merge/Rem files: %s/%s\n" % (o.merge,o.remove) if o.merge or o.remove else ""
-            status += "Verbose:         %s\n" % o.verbose if o.verbose else ""
-            status += "Test Mode:       %s\n" % o.test if o.test else ""
+    if o.verbose:
+        status =  "Avisynth file:   %s\n" % a[0]
+        status += "Label:           %s\n" % o.label if o.label else ""
+        status += "Audio file:      %s\n" % o.input if o.input else ""
+        status += "Cut Audio file:  %s\n" % o.output if o.output else ""
+        status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.timecodes else ""
+        status += "Chapters file:   %s%s\n" % o.chapters if o.chapters else ""
+        status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
+        status += "\n"
+        status += "Merge/Rem files: %s/%s\n" % (o.merge,o.remove) if o.merge or o.remove else ""
+        status += "Verbose:         %s\n" % o.verbose if o.verbose else ""
+        status += "Test Mode:       %s\n" % o.test if o.test else ""
 
-            print(status)
-            print('In trims: %s' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
+        print(status)
+        print('In trims: %s' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
 
-        # trims' offset calculation
-        Trims2 = []
-        Trims2ts = []
-        if not o.timecodes: o.timecodes = defaultFps
-        o.timecodes = [o.timecodes, determineFormat(o.timecodes)]
-        tc = o.timecodes
-        if tc[1] == 2:
-            nTrims = int(o.frames) if o.frames else int(Trims[-1][1])+2
-            if os.path.isfile(tc[0]+"v2.txt") == False:
-                tcConv = call('"%s" "%s" "%s" %d' % (tcConv, tc[0], tc[0]+"v2.txt", nTrims))
-                if tcConv > 0:
-                    sys.exit("Failed to execute tcConv: %d; Please put it in your path" % tcConv)
-            o.timecodes[0] = tc[0]+"v2.txt"
+    # trims' offset calculation
+    Trims2 = []
+    Trims2ts = []
+    if not o.timecodes: o.timecodes = defaultFps
+    o.timecodes = [o.timecodes, determineFormat(o.timecodes)]
+    tc = o.timecodes
+    if tc[1] == 2:
+        nTrims = int(o.frames) if o.frames else int(Trims[-1][1])+2
+        if os.path.isfile(tc[0]+"v2.txt") == False:
+            tcConv = call('"%s" "%s" "%s" %d' % (tcConv, tc[0], tc[0]+"v2.txt", nTrims))
+            if tcConv > 0:
+                sys.exit("Failed to execute tcConv: %d; Please put it in your path" % tcConv)
+        o.timecodes[0] = tc[0]+"v2.txt"
 
-        for i in range(len(Trims)):
-            fn1 = int(Trims[i][0])  # first frame
-            fn1ts = Ts(fn1,tc)[0]   # first frame timestamp
-            fn2 = int(Trims[i][1])  # last frame
-            fn2ts = Ts(fn2,tc)[0]   # last frame timestamp
-            fn2tsaud = Ts(fn2+1,tc) # last frame timestamp for audio
+    for i in range(len(Trims)):
+        fn1 = int(Trims[i][0])  # first frame
+        fn1ts = Ts(fn1,tc)[0]   # first frame timestamp
+        fn2 = int(Trims[i][1])  # last frame
+        fn2ts = Ts(fn2,tc)[0]   # last frame timestamp
+        fn2tsaud = Ts(fn2+1,tc) # last frame timestamp for audio
 
-            if i != 0:      # if it's not the first trim
-                last = int(Trims[i-1][1])+1
-                lastts = Ts(last,tc)[0]
-                offset += fn1-last
-                offsetts += fn1ts-lastts
-            elif fn1 > 0:   # if the first trim doesn't start at 0
-                offset = fn1
-                offsetts = fn1ts
-            else:
-                offset = 0
-                offsetts = 0
+        if i != 0:      # if it's not the first trim
+            last = int(Trims[i-1][1])+1
+            lastts = Ts(last,tc)[0]
+            offset += fn1-last
+            offsetts += fn1ts-lastts
+        elif fn1 > 0:   # if the first trim doesn't start at 0
+            offset = fn1
+            offsetts = fn1ts
+        else:
+            offset = 0
+            offsetts = 0
 
-            # apply the offset to the trims
-            Trims2.append([fn1-offset,fn2-offset])
-            Trims2ts.append([fn1ts-offsetts,fn2ts-offsetts])
+        # apply the offset to the trims
+        Trims2.append([fn1-offset,fn2-offset])
+        Trims2ts.append([fn1ts-offsetts,fn2ts-offsetts])
 
-            # make list with timecodes to cut audio
-            audio.append(formatTime(fn1ts,tc))
-            if len(fn2tsaud) == 1:
-                audio.append(formatTime(fn2tsaud[0],tc))
+        # make list with timecodes to cut audio
+        audio.append(formatTime(fn1ts,tc))
+        if len(fn2tsaud) == 1:
+            audio.append(formatTime(fn2tsaud[0],tc))
 
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
     if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc)) for i in range(len(Trims2ts))]))
