@@ -18,6 +18,10 @@ rat = re.compile('(\d+)(?:/|:)(\d+)')
 v1re = re.compile('# timecode format v1')
 v2re = re.compile('# timecode format v2')
 fpsre = re.compile("AssumeFPS\((\d+)\s*,\s*(\d+)\)",re.I)
+exts = {
+    "xml":"MKV",
+    "x264.txt":"X264"
+}
 
 # change the values here if the programs aren't in your PATH
 tcConv = 'tcConv'
@@ -34,7 +38,7 @@ def main():
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
     p.add_option('--fps', '-f', action="store", help='Frames per second (for cfr input)', dest="fps")
     p.add_option('--timecodes', '-t', action="store", help='Timecodes file from the vfr video (v1 needs tcConv)', dest="timecodes")
-    p.add_option('--chapters', '-c', action="store", help='Chapters file [.xml/.x264.txt/.txt]', dest="chapters")
+    p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
     p.add_option('--qpfile', '-q', action="store", help='QPFile for x264 (frame-accurate only if used with final framecount)', dest="qpfile")
     p.add_option('--verbose', '-v', action="store_true", help='Verbose', dest="verbose")
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
@@ -55,20 +59,14 @@ def main():
         options.timecodes = options.timecodes
     else:
         options.timecodes = options.fps
-    
-    if options.chapters != None:
-        cExt = options.chapters[-3:]
-        if cExt == 'xml':
-            chapType = 'MKV'
-        elif options.chapters[-8:] == 'x264.txt':
-            chapType = 'X264'
-        elif cExt == 'txt':
-            chapType = 'OGM'
-        else:
-            chapType = 'OGM'
+
+    #Determine chapter type
+    if options.chapters:
+        cExt = re.search("\.(%s)" % "|".join(exts.keys()),options.chapters,re.I)
+        chapType = exts[cExt.group(1).lower()] if cExt else "OGM"
     else:
         chapType = ''
-    
+
     if options.output == None and options.input != None:
         options.output = '%s.cut.mka' % options.input[-3:]
     
@@ -107,7 +105,7 @@ Label:           {label}
 Audio file:      {audio}
 Cut Audio file:  {cutaudio}
 Timecodes/FPS:   {timecodes}
-Chapters file:   {chapters}
+Chapters file:   {chapters} ({cType})
 QP file:         {qpfile}
 
 Merge/Rem files: {merge}/{remove}
@@ -119,6 +117,7 @@ Test Mode:       {test}
             cutaudio=options.output,
             timecodes=options.timecodes,
             chapters=options.chapters,
+            cType=chapType,
             qpfile=options.qpfile,
             merge=options.merge,
             remove=options.remove,
