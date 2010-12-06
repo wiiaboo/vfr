@@ -251,18 +251,18 @@ Test Mode:       {test}
 
 	</Tag>""".format(EditionUID,"Default","eng")
 
-    if not o.test:
-        with open(o.chapters, "w") as output:
-            if chapType == 'MKV':
-                output.write(matroskaXmlHeader)
-                output.write(matroskaXmlEditionHeader)
-                [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
-                output.write(matroskaXmlEditionFooter)
-                output.write(matroskaXmlFooter)
-            else:
-                [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
-    if o.verbose:
-        print("Writing {} Chapters to {}".format(chapType,o.chapters))
+        if not o.test:
+            with open(o.chapters, "w") as output:
+                if chapType == 'MKV':
+                    output.write(matroskaXmlHeader)
+                    output.write(matroskaXmlEditionHeader)
+                    [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
+                    output.write(matroskaXmlEditionFooter)
+                    output.write(matroskaXmlFooter)
+                else:
+                    [output.write(generateChap(formatTime(Trims2ts[i][0],tc), formatTime(Trims2ts[i][1],tc),i+1,chapType)) for i in range(len(Trims2ts))]
+        if o.verbose:
+            print("Writing {} Chapters to {}".format(chapType,o.chapters))
 
 def formatTime(ts,tc):
     """Converts timestamps to timecodes"""
