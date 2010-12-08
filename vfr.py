@@ -202,9 +202,8 @@ def main():
                 if (includefirst == True and i % 2 != 0) or (includefirst == False and i % 2 == 0):
                     merge.append('"%s.split-%03d.mka"' % (o.output, i))
             mergeCmd = '"%s" -o "%s" %s %s' % (mkvmerge,o.output, ' +'.join(merge), quiet)
-            if o.verbose: print('\nMerging: %s\n' % ', '.join(merge))
+            if o.verbose: print('\nMerging: %s\n' % mergeCmd)
             if not o.test:
-                print(mergeCmd)
                 mergeExec = call(mergeCmd)
                 if mergeExec == 1:
                     print("Mkvmerge exited with warnings: %d" % mergeExec)
