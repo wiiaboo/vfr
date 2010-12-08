@@ -146,6 +146,12 @@ def main():
             offset = 0
             offsetts = 0
 
+        if o.input:
+            # make list with timecodes to cut audio
+            audio.append(formatTime(fn1ts))
+            if len(fn2tsaud) == 1:
+                audio.append(formatTime(fn2tsaud[0]))
+
         # apply the offset to the trims
         fn1 -= offset
         fn2 -= offset
@@ -161,14 +167,9 @@ def main():
         Trims2.append([fn1,fn2])
         Trims2ts.append([fn1ts,fn2ts])
 
-        if o.input:
-            # make list with timecodes to cut audio
-            audio.append(formatTime(fn1ts))
-            if len(fn2tsaud) == 1:
-                audio.append(formatTime(fn2tsaud[0]))
-
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
     if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (formatTime(Trims2ts[i][0]), formatTime(Trims2ts[i][1])) for i in range(len(Trims2ts))]))
+    if o.verbose and o.input: print('Audio cuts timecodes: %s\n' % ', '.join(['(%s,%s)' % (audio[i], audio[i+1]) for i in range(len(audio)//2)]))
 
     # make qpfile
     if o.qpfile:
@@ -182,7 +183,7 @@ def main():
     if o.input:
         delayRe = re.search('DELAY ([-]?\d+)',o.input)
         delay = delayRe.group(1) if delayRe else '0'
-        if Trims2ts[0][0] == 0:
+        if Trims[0][0] == 0:
             includefirst = True
             audio = audio[1:]
         else:
