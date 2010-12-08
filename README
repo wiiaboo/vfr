@@ -1,39 +1,46 @@
 Inspired on: Daiz's AutoMKVChapters, TheFluff's split_aud, BD_Chapters
 
-Needs: Python 3.1; MkvToolNix; tcConv (for v1 timecodes parsing only)
+Needs: Python 3.1 (but also works with Python 2.7); MkvToolNix; tcConv (for v1 timecodes parsing only)
 
 What it does (for now):
 
-    reads the first line of uncommented Trims from an .avs
-    uses timecodes files to get each trim's frame's timestamp
-    offsets the trims accordingly
-    creates a basic xml with Matroska chapters, x264 chapters if ending in 'x264.txt' or OGM chapters if any other extension is used
-    creates a qpfile to use with x264
-    cuts and merges audio (as per split_aud, only using v2 timecodes instead of expecting cfr) (all options work as split_aud)
-    uses tcConv to convert v1 to v2 timecodes (less human-readable but more usable by the script)
+    Reads the first line of uncommented Trims from an .avs
+    Uses timecodes files to get each trim's frame's timestamp
+    Offsets the trims accordingly
+    Creates a basic xml with Matroska chapters, x264 chapters if ending in 'x264.txt' or OGM chapters if any other extension is used
+    Creates a qpfile to use with x264
+    Cuts and merges audio (as per split_aud, only using v2 timecodes instead of expecting cfr) (all options work as split_aud)
+    Uses tcConv to convert v1 to v2 timecodes (less human-readable but more usable by the script)
+    Can output a qpfile with converted frames meant to be used for an ivtc'd encode using non-ivtc'd frames (feature inspired by automkvchapters) (not completely accurate, obviously)
+
+Only the .avs with trims is required for vfr.py to run. You can use -v and/or --test to debug the script. All other options and arguments are optional.
 
 Usage:
 
-vfr.py -i audio.aac -o audio.cut.mka -f 30000/1001 -t timecodes.txt -c chapters.xml -q qpfile.qpf -vmr --test --frames 9001 trims.avs
+vfr.py -i audio.aac -o audio.cut.mka -f 30000/1001 -t timecodes.txt -c chapters.xml -q qpfile.qpf -vmr --test --frames 9001 trims.avs outtrims.avs
 
 -i = Audio to be cut (takes whatever mkvmerge takes)
 -o = Cut audio inside .mka
+     Default: input.cut.mka
 -f = Frames per second (takes "25", "24000/1001" and "30000:1001" as input)
+     Default: 30000/1001
 -l = Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression.
      Default: case insensitive trim
 -t = v1 or v2 timecodes file for vfr capabilities (needs tcConv.exe for v1 parsing)
+     Default: -f
 -c = Chapters file. If extension is 'xml', outputs MKV Chapters;
      if extension is 'x264.txt' it outputs x264 Chapters; else it outputs OGM Chapters
 -q = QPFile for use in x264
 -v = Verbose mode
 -m = Merge split audio files
 -r = Remove split audio files after merging
+--ofps = Output FPS (used in qpfile and avs export)
+         Default: -f
 --test = Test Mode (doesn't create new files)
 --frames = number of frames for v1 to v2 timecodes conversion
 trims.avs = Gets first uncommented line starting with trims from this Avisynth script
+outtrims.avs = If chapparse.py is present, outputs .avs with offset and converted trims
 
 To do:
 - accept template files to help with ordered chapters (as automkvchapters)
 - optimize code and/or improve its legibility
-
-Any suggestions or issues are gladly welcome.
