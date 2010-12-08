@@ -135,10 +135,10 @@ def main():
         if o.input: fn2tsaud = Ts(fn2+1,tc,tcType) # last frame timestamp for audio
 
         if i != 0:      # if it's not the first trim
-            last = Trims2[i-1][1]+1
+            last = int(Trims[i-1][1])
             lastts = Trims2ts[i-1][1]
-            offset += fn1-last
-            offsetts += fn1ts-lastts if offset else 0
+            offset += fn1-(last+1)
+            offsetts += fn1ts-lastts if fn1-(last+1) != 0 else 0
         elif fn1 > 0:   # if the first trim doesn't start at 0
             offset = fn1
             offsetts = fn1ts
