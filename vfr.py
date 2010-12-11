@@ -121,11 +121,12 @@ def main():
     tc = o.timecodes
     if tcType == 2:
         nTrims = int(o.frames) if o.frames else int(Trims[-1][1])+2
-        if os.path.isfile(tc+"v2.txt") == False:
+        if not os.path.isfile(tc+"v2.txt"):
             tcConv = call('"%s" "%s" "%s" %d' % (tcConv, tc, tc+"v2.txt", nTrims))
             if tcConv > 0:
                 sys.exit("Failed to execute tcConv: %d; Please put it in your path" % tcConv)
         o.timecodes = tc+"v2.txt"
+        tcType = 3
 
     for i in range(len(Trims)):
         fn1 = int(Trims[i][0])                     # first frame
@@ -302,7 +303,7 @@ def Ts(fn,tc,tcType=1):
         ts = int(round((10**5 * fn * float(fps[1])) / int(fps[0])))*10**4
         return [vTrunc(ts),]
     # VFR
-    elif tcType >= 2:
+    elif tcType = 3:
         ts = linecache.getline(tc,fn+2)
         if ts == '':
             lines = 0
