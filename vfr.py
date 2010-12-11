@@ -290,6 +290,20 @@ def determineFormat(timecodes):
     elif v2re.match(linecache.getline(timecodes,1)): return 3
     else: return 0
 
+# def parseTc( tcfile ):
+    # tc = open(tcfile)
+    # ret = re.search('# timecode format v(\d)',tcfile.readline())
+    # version = ret.group(1) if ret else exit('file is not in a supported format')
+    # if version == '1':
+        # tclines = tcfile.readlines()
+        # tc.close()
+        # for line in tclines:
+            # ret = re.search('Assume (\d+(\.\d+)?)(?i)',line)
+            # assume = ret.group(1) if ret else exit('assumed fps not found')
+        ^ doing it fucking wrong
+    # elif version == '2':
+        # tc.close()
+
 def vTrunc(ts):
     """Truncates a ns timestamp to 0.1ms precision"""
     ts = ts / 10**6
