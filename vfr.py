@@ -133,11 +133,11 @@ def main():
         fn1ts = Ts(fn1,tc,tcType)[0]               # first frame timestamp
         fn2 = int(Trims[i][1])                     # last frame
         fn2ts = Ts(fn2,tc,tcType)[0]               # last frame timestamp
-        if o.input: fn2tsaud = Ts(fn2+1,tc,tcType) # last frame timestamp for audio
+        fn2tsaud = Ts(fn2+1,tc,tcType)             # last frame timestamp for audio
 
+        # calculate offsets for non-continuous trims
         if i != 0:      # if it's not the first trim
             last = int(Trims[i-1][1])
-            lastts = Trims2ts[i-1][1]
             offset += fn1-(last+1)
             offsetts += fn1ts-lastts if fn1-(last+1) != 0 else 0
         elif fn1 > 0:   # if the first trim doesn't start at 0
@@ -154,6 +154,7 @@ def main():
                 audio.append(formatTime(fn2tsaud[0]))
 
         # apply the offset to the trims
+        lastts=fn2tsaud[0]
         fn1 -= offset
         fn2 -= offset
         fn1ts -= offsetts
@@ -303,7 +304,7 @@ def Ts(fn,tc,tcType=1):
         ts = int(round((10**5 * fn * float(fps[1])) / int(fps[0])))*10**4
         return [vTrunc(ts),]
     # VFR
-    elif tcType = 3:
+    elif tcType == 3:
         ts = linecache.getline(tc,fn+2)
         if ts == '':
             lines = 0
@@ -323,7 +324,7 @@ def Ts(fn,tc,tcType=1):
             return [ts,'out-of-bounds']
         return [int(float(ts)*10**6),]
     elif len(tc) != 2:
-        print("tc needs a list with timecode file and format determined by determineFormat()")
+        sys.exit("Ts() needs a list with timecode file and format determined by determineFormat()")
     else:
         sys.exit("Couldn't get timestamps")
 
