@@ -40,6 +40,7 @@ def main():
     p.add_option('--ofps', action="store", help='Output frames per second', dest="ofps")
     p.add_option('--timecodes', '-t', action="store", help='Timecodes file from the vfr video', dest="timecodes")
     p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
+    p.add_option('--chnames', '-n', action="store", help='Path to template file for chapter names', dest="chnames")
     p.add_option('--qpfile', '-q', action="store", help='QPFile for x264 (frame-accurate only if used with final framecount)', dest="qpfile")
     p.add_option('--verbose', '-v', action="store_true", help='Verbose', dest="verbose")
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
@@ -267,16 +268,28 @@ def main():
 
 	</Tag>""".format(EditionUID,"Default","eng")
 
+        # Assign names to each chapter if --chnames
+        chapNames = []
+
+        if o.chnames:
+            with open(o.chnames, "r") as f:
+                [chapNames.append(line.strip()) for line in f.readlines()]
+
+        if not o.chnames or len(chapNames) != len(Trims2ts):
+            # The if statement is for clarity; it doesn't actually do anything useful
+            for i in range(len(chapNames),len(Trims2ts)):
+                chapNames.append("Chapter {:02d}".format(i+1))
+
         if not o.test:
             with open(o.chapters, "w") as output:
                 if chapType == 'MKV':
                     output.write(matroskaXmlHeader)
                     output.write(matroskaXmlEditionHeader)
-                    [output.write(generateChap(formatTime(Trims2ts[i][0]), formatTime(Trims2ts[i][1]),i+1,chapType)) for i in range(len(Trims2ts))]
+                    [output.write(generateChap(formatTime(Trims2ts[i][0]), formatTime(Trims2ts[i][1]),i+1,chapNames[i],chapType)) for i in range(len(Trims2ts))]
                     output.write(matroskaXmlEditionFooter)
                     output.write(matroskaXmlFooter)
                 else:
-                    [output.write(generateChap(formatTime(Trims2ts[i][0],1), formatTime(Trims2ts[i][1],1),i+1,chapType)) for i in range(len(Trims2ts))]
+                    [output.write(generateChap(formatTime(Trims2ts[i][0],1), formatTime(Trims2ts[i][1],1),i+1,chapNames[i],chapType)) for i in range(len(Trims2ts))]
         if o.verbose:
             print("Writing {} Chapters to {}".format(chapType,o.chapters))
 
@@ -372,7 +385,7 @@ def unTs(fn,old,new):
     new=new if math.floor(new) == math.floor(abs(new-0.2)) else new-0.2
     return int(math.floor(new))
 
-def generateChap(start, end, chapter, type):
+def generateChap(start, end, chapter, chaptername, type):
     """Generates chapters"""
     # Matroska
     if type == 'MKV':
@@ -381,17 +394,17 @@ def generateChap(start, end, chapter, type):
 			<ChapterTimeStart>{}</ChapterTimeStart>
 			<ChapterTimeEnd>{}</ChapterTimeEnd>
 			<ChapterDisplay>
-				<ChapterString>Chapter {:02d}</ChapterString>
+				<ChapterString>{}</ChapterString>
 				<ChapterLanguage>{}</ChapterLanguage>
 			</ChapterDisplay>
 		</ChapterAtom>
-"""[1:].format(start,end,chapter,"eng")
+"""[1:].format(start,end,chaptername,"eng")
     # OGM
     elif type == 'OGM':
-        return 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME=Chapter {0:02d}\n'.format(chapter,start)
+        return 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME={2}\n'.format(chapter,start,chaptername)
     # X264
     elif type == 'X264':
-        return '{0} Chapter {1:02d}\n'.format(start,chapter)
+        return '{0} {1}\n'.format(start,chaptername)
 
 if __name__ == '__main__':
     main()
