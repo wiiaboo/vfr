@@ -131,16 +131,19 @@ def main():
 
     for i in range(len(Trims)):
         fn1 = int(Trims[i][0])                     # first frame
-        fn1ts = vTrunc(Ts(fn1,tc,tcType)[0])       # first frame timestamp
+        fn1tsaud = vTrunc(Ts(fn1,tc,tcType)[0])    # first frame timestamp for audio
+        fn1ts = vTrunc(fn1tsaud)                   # first frame timestamp
         fn2 = int(Trims[i][1])                     # last frame
         fn2ts = vTrunc(Ts(fn2,tc,tcType)[0])       # last frame timestamp
         fn2tsaud = Ts(fn2+1,tc,tcType)             # last frame timestamp for audio
+        adjacent = False
 
         # calculate offsets for non-continuous trims
         if i != 0:      # if it's not the first trim
             last = int(Trims[i-1][1])
+            adjacent = True if fn1-(last+1) == 0 else False
             offset += fn1-(last+1)
-            offsetts += fn1ts-lastts if fn1-(last+1) != 0 else 0
+            offsetts += 0 if adjacent else fn1ts-lastts
         elif fn1 > 0:   # if the first trim doesn't start at 0
             offset = fn1
             offsetts = fn1ts
@@ -150,7 +153,11 @@ def main():
 
         if o.input:
             # make list with timecodes to cut audio
-            audio.append(formatTime(fn1ts))
+            if adjacent:
+                del audio[-1]
+            else:
+                audio.append(formatTime(fn1tsaud))
+
             if len(fn2tsaud) == 1:
                 audio.append(formatTime(vTrunc(fn2tsaud[0])))
 
