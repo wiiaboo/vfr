@@ -7,13 +7,12 @@ import optparse
 import os
 import random
 import math
-try:
-    from chapparse import writeAvisynth
-    chapparseExists = True
-except ImportError:
-    chapparseExists = False
 from subprocess import call
 from fractions import Fraction
+try:
+    from chapparse import writeAvisynth
+except ImportError:
+    writeAvisynth = False
 
 rat = re.compile('(\d+)(?:/|:)(\d+)')
 v1re = re.compile('# timecode format v1')
@@ -32,7 +31,7 @@ def main():
 
     p = optparse.OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
                               version='VFR Chapter Creator 0.7.3',
-                              usage='%prog [options] infile.avs{}'.format(" [outfile.avs]" if chapparseExists else ""))
+                              usage='%prog [options] infile.avs{}'.format(" [outfile.avs]" if writeAvisynth else ""))
     p.add_option('--label', '-l', action="store", help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim", dest="label")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
@@ -230,7 +229,7 @@ def main():
                 [os.unlink(i) if os.path.exists(i) else True for i in remove]
 
     # make offseted avs
-    if chapparseExists and len(a) > 1:
+    if writeAvisynth and len(a) > 1:
         fNum = [i[0] for i in Trims2]
         set = {'avs':'"'+a[1]+'"','input':'','resize':''}
         writeAvisynth(set,fNum)
