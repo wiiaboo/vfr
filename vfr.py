@@ -223,7 +223,6 @@ def main():
 
         if o.remove:
             remove = ['%s.split-%03d.mka' % (o.output, i) for i in range(1,len(audio)+2)]
-            if tcType == 2: remove.append(tc)
             if o.verbose: print('\nDeleting: %s\n' % ', '.join(remove))
             if not o.test:
                 [os.unlink(i) if os.path.exists(i) else True for i in remove]
@@ -293,7 +292,11 @@ def main():
             print("Writing {} Chapters to {}".format(chapType,o.chapters))
 
 def formatTime(ts,msp=None):
-    """Converts ns timestamps to timecodes."""
+    """Converts timestamps to timecodes.
+    
+    msp = Set timecodes for millisecond precision if True
+    
+    """
     s = ts / 10**9
     m = s // 60
     s = s % 60
@@ -383,7 +386,13 @@ def Ts(fn,tc,tcType=1,timecode_scale=1000):
         sys.exit("Couldn't get timestamps")
 
 def unTs(fn,old,new):
-    """Returns a frame number from fps and ofps (ConvertFPS)"""
+    """Returns a frame number from fps and ofps (ConvertFPS)
+    
+    fn = frame number
+    old = original fps ('30000/1001', '25')
+    new = output fps ('24000/1001', etc.)
+    
+    """
     old=Ts(fn,old,1,10**9)[0]
     ofps = rat.search(new).groups() if rat.search(new) else [re.search('(\d+)',new).group(0),'1']
     new=old/10**3/(float(ofps[1])/int(ofps[0]))
@@ -391,7 +400,11 @@ def unTs(fn,old,new):
     return int(math.floor(new))
 
 def generateChap(start, end, chapter, chaptername, type):
-    """Generates chapters"""
+    """Generates chapters
+    
+    start = start time in 'hh:mm:ss
+    
+    """
     # Matroska
     if type == 'MKV':
         return """
