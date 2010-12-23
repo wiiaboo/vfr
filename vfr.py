@@ -14,9 +14,8 @@ try:
 except ImportError:
     writeAvisynth = False
 
-rat = re.compile('(\d+)(?:/|:)(\d+)')
-v1re = re.compile('# timecode format v1')
-v2re = re.compile('# timecode format v2')
+cfr_re = re.compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
+vfr_re = re.compile('# timecode format (v1|v2)')
 fpsre = re.compile("(?<!#)AssumeFPS\((\d+)\s*,\s*(\d+)\)(?i)")
 exts = {
     "xml":"MKV",
@@ -294,10 +293,12 @@ def formatTime(ts,msp=None):
 
 def determineFormat(timecodes):
     """Determines the format of the timecodes provided using regex."""
-    if rat.match(timecodes) or re.match('^\d+$',timecodes): return 1
-    elif v1re.match(linecache.getline(timecodes,1)): return 2
-    elif v2re.match(linecache.getline(timecodes,1)): return 3
-    else: return 0
+    if cfr_re.match(timecodes): return 1
+    elif vfr_re.match(linecache.getline(timecodes,1)):
+        type = vfr_re.match(linecache.getline(timecodes,1)).group(1)
+        if type == 'v1': return 2
+        elif type == 'v2': return 3
+    else: sys.exit('Invalid timecodes/fps')
 
 def vTrunc(ts):
     """Truncates a ns timestamp to 0.1ms precision."""
@@ -342,7 +343,8 @@ def Ts(fn,tc,tcType=1,timecode_scale=1000):
     scale = 10**12 / timecode_scale
     # CFR
     if tcType == 1:
-        fps = rat.search(tc).groups() if rat.search(tc) else [re.search('(\d+)',tc).group(0),'1']
+        fps = cfr_re.search(tc).groups() if cfr_re.search(tc) else [re.search('(\d+)',tc).group(0),'1']
+        if not fps[1]: fps = [fps[0],'1']
         ts = int(round((scale * fn * float(fps[1])) / int(fps[0])))
         return [ts,]
     # VFR
