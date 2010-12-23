@@ -247,7 +247,7 @@ def main():
 		<EditionFlagDefault>{}</EditionFlagDefault>
 		<EditionFlagOrdered>{}</EditionFlagOrdered>
 		<EditionUID>{}</EditionUID>
-""".format(0,1,1,EditionUID)
+""".format(0,1,0,EditionUID)
             matroskaXmlEditionFooter = '	</EditionEntry>'
             matroskaXmlFooter = '\n</Chapters>'
 
@@ -313,12 +313,17 @@ def determineFormat(timecodes):
     else: return 0
 
 def vTrunc(ts):
-    """Truncates a ns timestamp to 0.1ms precision"""
+    """Truncates a ns timestamp to 0.1ms precision."""
     ts = ts / 10**6
     tts = round(ts,1) if round(ts,1) == math.floor(ts*10)/10 else math.ceil(ts*10)/10-0.05
     return int(round(tts*10**6))
 
 def parseTc(tcfile,tmp,last):
+    """Parses a timecodes file.
+    
+    For now, it only parses v1 timecodes, creating a v2 timecodes file.
+    
+    """
     tc = open(tcfile)
     ts = 0
     ret = re.search('# timecode format (v\d)',tc.readline())
