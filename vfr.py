@@ -335,9 +335,10 @@ def parseTc(tcfile,tmp,last):
         tmp.write('# timecode format v2\n')
         for i in range(int(last)+1):
             fps = assume
-            for r in overrides:
-                if i in r[0]:
-                    fps = r[1]
+            if overrides:
+                for r in overrides:
+                    if i in r[0]:
+                        fps = r[1]
             ts += fps.denominator/fps.numerator if i > 0 else 0
             tmp.write('{}\n'.format(round(vTrunc(int(round(ts,7)*10**9))/10**6,6)))
         tmp.close()
