@@ -139,17 +139,20 @@ def main():
         adjacent = False
 
         # calculate offsets for non-continuous trims
-        if i != 0:      # if it's not the first trim
-            last = int(Trims[i-1][1])
-            adjacent = True if fn1-(last+1) == 0 else False
-            offset += fn1-(last+1)
-            offsetts += 0 if adjacent else fn1ts-lastts
-        elif fn1 > 0:   # if the first trim doesn't start at 0
-            offset = fn1
-            offsetts = fn1ts
-        else:
+        if i == 0:
             offset = 0
             offsetts = 0
+            if fn1 > 0:
+                # if the first trim doesn't start at 0
+                offset = fn1
+                offsetts = fn1ts
+        else:
+            # if it's not the first trim
+            last = int(Trims[i-1][1])
+            lastts = vTrunc(Ts(last+1,tc,tcType)[0])
+            adjacent = True if fn1-(last+1) == 0 else False
+            offset += fn1-(last+1)
+            offsetts += 0 if adjacent else fn1ts-lastts           
 
         if o.input:
             # make list with timecodes to cut audio
@@ -162,7 +165,6 @@ def main():
                 audio.append(formatTime(vTrunc(fn2tsaud[0])))
 
         # apply the offset to the trims
-        lastts=vTrunc(fn2tsaud[0])
         fn1 -= offset
         fn2 -= offset
         fn1ts -= offsetts
@@ -248,23 +250,6 @@ def main():
 """.format(0,1,0,EditionUID)
             matroskaXmlEditionFooter = '	</EditionEntry>'
             matroskaXmlFooter = '\n</Chapters>'
-
-            matroskaXmlTagsHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Tags>'
-            matroskaXmlTagsEdition = """
-	<Tag>
-		<Targets>
-			<EditionUID>{}</EditionUID>
-			<TargetTypeValue>50</TargetTypeValue>
-		</Targets>
-
-		<Simple>
-			<Name>TITLE</Name>
-			<String>{}</String>
-			<TagLanguage>{}</TagLanguage>
-			<DefaultLanguage>1</DefaultLanguage>
-		</Simple>
-
-	</Tag>""".format(EditionUID,"Default","eng")
 
         # Assign names to each chapter if --chnames
         chapNames = []
@@ -364,17 +349,14 @@ def Ts(fn,tc,tcType=1,timecode_scale=1000):
     elif tcType >= 2:
         ts = linecache.getline(tc,fn+2)
         if ts == '':
-            lines = 0
             with open(tc) as file:
-                for line in file:
-                    lines += 1
+                lines = len(file.readlines())
+ 
             nLines = math.ceil(lines / 100)
             average = 0
             for i in range(nLines):
                 average += (int(float(linecache.getline(tc,lines-i))*10**6) - int(float(linecache.getline(tc,lines-i-1))*10**6))
             average = average / nLines
-            lastTs = int(float(linecache.getline(tc,lines))*10**6)
-            secdTs = int(float(linecache.getline(tc,lines-1))*10**6)
             ts = int(fn * average)
             if fn != lines-1:
                 print("Warning: Trim {} goes beyond last frame. Audio cutting not recommended.".format(fn))
