@@ -62,9 +62,9 @@ def main():
     #Determine chapter type
     if o.chapters:
         cExt = re.search("\.(%s)" % "|".join(exts.keys()),o.chapters,re.I)
-        chapType = exts[cExt.group(1).lower()] if cExt else "OGM"
+        chapter_type = exts[cExt.group(1).lower()] if cExt else "OGM"
     else:
-        chapType = ''
+        chapter_type = ''
 
     if not o.output and o.input:
         ret = re.search("(.*)\.\w*$",o.input)
@@ -103,7 +103,7 @@ def main():
         status += "Audio file:      %s\n" % o.input if o.input else ""
         status += "Cut Audio file:  %s\n" % o.output if o.output else ""
         status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.ofps != o.timecodes else ""
-        status += "Chapters file:   %s%s\n" % (o.chapters," (%s)" % chapType if chapType else "") if o.chapters else ""
+        status += "Chapters file:   %s%s\n" % (o.chapters," (%s)" % chapter_type if chapter_type else "") if o.chapters else ""
         status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
         status += "\n"
         status += "Merge/Rem files: %s/%s\n" % (o.merge,o.remove) if o.merge or o.remove else ""
@@ -117,24 +117,24 @@ def main():
     Trims2 = []
     Trims2ts = []
     tc = o.timecodes
-    tcType = determineFormat(tc)
-    if tcType == 2:
+    tc_type = get_tc_type(tc)
+    if tc_type == 2:
         if not os.path.isfile(tc[:-3]+"v2.txt"):
             tc2 = tc[:-3]+"v2.txt"
             tmp = tc2
-            parseTc(tc,tmp,Trims[-1][1])
+            parse_tc(tc,tmp,Trims[-1][1])
         else:
             tc2 = tc[:-3]+"v2.txt"
         tc = tc2
-        tcType = 3
+        tc_type = 3
 
     for i in range(len(Trims)):
         fn1 = int(Trims[i][0])
-        fn1tsaud = truncate(Ts(fn1,tc,tcType)[0])
+        fn1tsaud = truncate(get_ts(fn1,tc,tc_type)[0])
         fn1ts = truncate(fn1tsaud)
         fn2 = int(Trims[i][1])
-        fn2ts = truncate(Ts(fn2,tc,tcType)[0])
-        fn2tsaud = Ts(fn2+1,tc,tcType)
+        fn2ts = truncate(get_ts(fn2,tc,tc_type)[0])
+        fn2tsaud = get_ts(fn2+1,tc,tc_type)
         adjacent = False
 
         # calculate offsets for non-continuous trims
@@ -148,7 +148,7 @@ def main():
         else:
             # if it's not the first trim
             last = int(Trims[i-1][1])
-            lastts = truncate(Ts(last+1,tc,tcType)[0])
+            lastts = truncate(get_ts(last+1,tc,tc_type)[0])
             adjacent = True if fn1-(last+1) == 0 else False
             offset += fn1-(last+1)
             offsetts += 0 if adjacent else fn1ts-lastts           
@@ -158,10 +158,10 @@ def main():
             if adjacent:
                 del audio[-1]
             else:
-                audio.append(formatTime(fn1tsaud))
+                audio.append(fmt_time(fn1tsaud))
 
             if len(fn2tsaud) == 1:
-                audio.append(formatTime(truncate(fn2tsaud[0])))
+                audio.append(fmt_time(truncate(fn2tsaud[0])))
 
         # apply the offset to the trims
         fn1 -= offset
@@ -171,15 +171,15 @@ def main():
 
         # convert fps if --ofps
         if o.ofps and o.timecodes != o.ofps:
-            fn1 = unTs(fn1,tc,o.ofps)
-            fn2 = unTs(fn2,tc,o.ofps)
+            fn1 = convert_fps(fn1,tc,o.ofps)
+            fn2 = convert_fps(fn2,tc,o.ofps)
 
         # add trims and their timestamps to list
         Trims2.append([fn1,fn2])
         Trims2ts.append([fn1ts,fn2ts])
 
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
-    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (formatTime(Trims2ts[i][0]), formatTime(Trims2ts[i][1])) for i in range(len(Trims2ts))]))
+    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1])) for i in range(len(Trims2ts))]))
     if o.verbose and o.input: print('Audio cuts timecodes: %s\n' % ', '.join(['(%s,%s)' % (audio[i], audio[i+1]) for i in range(len(audio)//2)]))
 
     # make qpfile
@@ -235,9 +235,9 @@ def main():
         writeAvisynth(set,fNum)
 
     # write chapters
-    if chapType:
+    if chapter_type:
 
-        if chapType == 'MKV':
+        if chapter_type == 'MKV':
             EditionUID = random.randint(10**5,10**6)
             matroskaXmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Chapters>'
             matroskaXmlEditionHeader = """
@@ -251,31 +251,31 @@ def main():
             matroskaXmlFooter = '\n</Chapters>'
 
         # Assign names to each chapter if --chnames
-        chapNames = []
+        chapter_names = []
 
         if o.chnames:
             with open(o.chnames, "r") as f:
-                [chapNames.append(line.strip()) for line in f.readlines()]
+                [chapter_names.append(line.strip()) for line in f.readlines()]
 
-        if not o.chnames or len(chapNames) != len(Trims2ts):
+        if not o.chnames or len(chapter_names) != len(Trims2ts):
             # The if statement is for clarity; it doesn't actually do anything useful
-            for i in range(len(chapNames),len(Trims2ts)):
-                chapNames.append("Chapter {:02d}".format(i+1))
+            for i in range(len(chapter_names),len(Trims2ts)):
+                chapter_names.append("Chapter {:02d}".format(i+1))
 
         if not o.test:
             with open(o.chapters, "w") as output:
-                if chapType == 'MKV':
+                if chapter_type == 'MKV':
                     output.write(matroskaXmlHeader)
                     output.write(matroskaXmlEditionHeader)
-                    [output.write(generateChap(formatTime(Trims2ts[i][0]), formatTime(Trims2ts[i][1]),i+1,chapNames[i],chapType)) for i in range(len(Trims2ts))]
+                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1]),i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
                     output.write(matroskaXmlEditionFooter)
                     output.write(matroskaXmlFooter)
                 else:
-                    [output.write(generateChap(formatTime(Trims2ts[i][0],1), formatTime(Trims2ts[i][1],1),i+1,chapNames[i],chapType)) for i in range(len(Trims2ts))]
+                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0],1), fmt_time(Trims2ts[i][1],1),i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
         if o.verbose:
-            print("Writing {} Chapters to {}".format(chapType,o.chapters))
+            print("Writing {} Chapters to {}".format(chapter_type,o.chapters))
 
-def formatTime(ts,msp=None):
+def fmt_time(ts,msp=None):
     """Converts timestamps to timecodes.
     
     msp = Set timecodes for millisecond precision if True
@@ -291,7 +291,7 @@ def formatTime(ts,msp=None):
     else:
         return '{:02.0f}:{:02.0f}:{:012.9f}'.format(h, m, s)
 
-def determineFormat(timecodes):
+def get_tc_type(timecodes):
     """Determines the format of the timecodes provided using regex."""
     if cfr_re.match(timecodes): return 1
     elif vfr_re.match(linecache.getline(timecodes,1)):
@@ -314,7 +314,7 @@ def truncate(ts,scale=0):
     tts = math.floor(ots*10)*10 if round(ots,1) == math.floor(ots*10)/10 else math.ceil(ots*10)*10-5
     return int(tts*10**(scale-2))
 
-def parseTc(tcfile,tmp,last):
+def parse_tc(tcfile,tmp,last):
     """Parses a timecodes file.
     
     For now, it only parses v1 timecodes, creating a v2 timecodes file.
@@ -346,17 +346,24 @@ def parseTc(tcfile,tmp,last):
     elif version == 'v2':
         tc.close()
 
-def Ts(fn,tc,tcType=1,timecode_scale=1000):
-    """Returns timestamps (in ns) from a frame number and timecodes file."""
-    scale = 10**12 / timecode_scale
+def get_ts(fn,tc,tc_type=1,scale=0):
+    """Returns timestamps from a frame number and timecodes file or cfr fps
+    
+    Default: 0 (ns)
+    
+    Examples: 3 (µs); 6 (ms); 9 (s)
+    
+    """
+    scale = 9-scale
+    
     # CFR
-    if tcType == 1:
+    if tc_type == 1:
         fps = cfr_re.search(tc).groups() if cfr_re.search(tc) else [re.search('(\d+)',tc).group(0),'1']
         if not fps[1]: fps = [fps[0],'1']
-        ts = int(round((scale * fn * float(fps[1])) / int(fps[0])))
+        ts = int(round((10**scale * fn * float(fps[1])) / int(fps[0])))
         return [ts,]
     # VFR
-    elif tcType >= 2:
+    elif tc_type >= 2:
         ts = linecache.getline(tc,fn+2)
         if ts == '':
             with open(tc) as file:
@@ -371,13 +378,13 @@ def Ts(fn,tc,tcType=1,timecode_scale=1000):
             if fn != lines-1:
                 print("Warning: Trim {} goes beyond last frame. Audio cutting not recommended.".format(fn))
             return [ts,'out-of-bounds']
-        return [int(float(ts)*10**6),]
+        return [int(float(ts)*10**(scale-3)),]
     elif len(tc) != 2:
-        sys.exit("Ts() needs a list with timecode file and format determined by determineFormat()")
+        sys.exit("get_ts() needs a list with timecode file and format determined by get_tc_type()")
     else:
         sys.exit("Couldn't get timestamps")
 
-def unTs(fn,old,new):
+def convert_fps(fn,old,new):
     """Returns a frame number from fps and ofps (ConvertFPS)
     
     fn = frame number
@@ -385,19 +392,23 @@ def unTs(fn,old,new):
     new = output fps ('24000/1001', etc.)
     
     """
-    old=Ts(fn,old,1,10**9)[0]
+    old=get_ts(fn,old,1,10**9)[0]
     ofps = rat.search(new).groups() if rat.search(new) else [re.search('(\d+)',new).group(0),'1']
     new=old/10**3/(float(ofps[1])/int(ofps[0]))
     new=new if math.floor(new) == math.floor(abs(new-0.2)) else new-0.2
     return int(math.floor(new))
 
-def generateChap(start, end, chapter, chaptername, type):
+def generate_chapters(start, end, num, name, type):
     """Generates chapters
     
-    start = start time in 'hh:mm:ss
+    start = '00:00:00.000000000'
+    end = same as start
+    num = chapter number for OGM (int)
+    name = chapter name
+    type = 'MKV', 'OGM' or 'X264'
     
     """
-    # Matroska
+
     if type == 'MKV':
         return """
 		<ChapterAtom>
@@ -408,13 +419,13 @@ def generateChap(start, end, chapter, chaptername, type):
 				<ChapterLanguage>{}</ChapterLanguage>
 			</ChapterDisplay>
 		</ChapterAtom>
-"""[1:].format(start,end,chaptername,"eng")
-    # OGM
+"""[1:].format(start,end,name,"eng")
+
     elif type == 'OGM':
-        return 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME={2}\n'.format(chapter,start,chaptername)
-    # X264
+        return 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME={2}\n'.format(num,start,name)
+
     elif type == 'X264':
-        return '{0} {1}\n'.format(start,chaptername)
+        return '{0} {1}\n'.format(start,name)
 
 if __name__ == '__main__':
     main()
