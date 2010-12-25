@@ -120,12 +120,12 @@ def main():
     tc = o.timecodes
     tc_type = get_tc_type(tc)
     if tc_type == 2:
-        if not os.path.isfile(tc[:-3]+"v2.txt"):
-            tc2 = tc[:-3]+"v2.txt"
+        if not os.path.isfile(tc[:-3]+"converted.txt"):
+            tc2 = tc[:-3]+"converted.txt"
             tmp = tc2
             parse_tc(tc,tmp,Trims[-1][1])
         else:
-            tc2 = tc[:-3]+"v2.txt"
+            tc2 = tc[:-3]+"converted.txt"
         tc = tc2
         tc_type = 3
 
@@ -332,18 +332,21 @@ def parse_tc(tcfile,tmp,last):
         tc.close()
         ret = re.search('Assume (\d+(?:\.\d+)?)(?i)',tclines[0])
         assume = Fraction(ret.group(1)).limit_denominator(1001) if ret else sys.exit('there is no assumed fps')
-        overrides = [[range(int(i[0]),int(i[1])+1),Fraction(i[2]).limit_denominator(1001)] for i in re.findall('^(\d+),(\d+),(\d+(?:\.\d+)?)$(?m)',''.join(tclines[1:]))] if len(tclines) > 1 else None
+        overrides = {}
+        ret = [[range(int(i[0])+1,int(i[1])+2),Fraction(i[2]).limit_denominator(1001)] for i in re.findall('^(\d+),(\d+),(\d+(?:\.\d+)?)$(?m)',''.join(tclines[1:]))] if len(tclines) > 1 else None
+        if ret:
+            for ov_fps in ret:
+                for frame in ov_fps[0]:
+                    overrides[frame] = ov_fps[1]
         ret = re.search('^# TDecimate Mode 3:  Last Frame = (\d)$(?m)',''.join(tclines))
         last = int(ret) if ret else last
         tmp.write('# timecode format v2\n')
-        for i in range(int(last)+1):
+        for frame in range(int(last)+2):
             fps = assume
-            if overrides:
-                for r in overrides:
-                    if i in r[0]:
-                        fps = r[1]
-            ts += fps.denominator/fps.numerator if i > 0 else 0
-            tmp.write('{}\n'.format(round(truncate(int(round(ts,7)*10**9))/10**6,6)))
+            if overrides and frame in overrides:
+                fps = overrides[frame]
+            ts += fps.denominator/fps.numerator if frame > 0 else 0
+            tmp.write('{:.6f}\n'.format(round(ts*10**3,6)))
         tmp.close()
     elif version == 'v2':
         tc.close()
