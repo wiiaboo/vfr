@@ -129,12 +129,12 @@ def main():
         tcType = 3
 
     for i in range(len(Trims)):
-        fn1 = int(Trims[i][0])                     # first frame
-        fn1tsaud = vTrunc(Ts(fn1,tc,tcType)[0])    # first frame timestamp for audio
-        fn1ts = vTrunc(fn1tsaud)                   # first frame timestamp
-        fn2 = int(Trims[i][1])                     # last frame
-        fn2ts = vTrunc(Ts(fn2,tc,tcType)[0])       # last frame timestamp
-        fn2tsaud = Ts(fn2+1,tc,tcType)             # last frame timestamp for audio
+        fn1 = int(Trims[i][0])
+        fn1tsaud = truncate(Ts(fn1,tc,tcType)[0])
+        fn1ts = truncate(fn1tsaud)
+        fn2 = int(Trims[i][1])
+        fn2ts = truncate(Ts(fn2,tc,tcType)[0])
+        fn2tsaud = Ts(fn2+1,tc,tcType)
         adjacent = False
 
         # calculate offsets for non-continuous trims
@@ -148,7 +148,7 @@ def main():
         else:
             # if it's not the first trim
             last = int(Trims[i-1][1])
-            lastts = vTrunc(Ts(last+1,tc,tcType)[0])
+            lastts = truncate(Ts(last+1,tc,tcType)[0])
             adjacent = True if fn1-(last+1) == 0 else False
             offset += fn1-(last+1)
             offsetts += 0 if adjacent else fn1ts-lastts           
@@ -161,7 +161,7 @@ def main():
                 audio.append(formatTime(fn1tsaud))
 
             if len(fn2tsaud) == 1:
-                audio.append(formatTime(vTrunc(fn2tsaud[0])))
+                audio.append(formatTime(truncate(fn2tsaud[0])))
 
         # apply the offset to the trims
         fn1 -= offset
@@ -300,11 +300,19 @@ def determineFormat(timecodes):
         elif type == 'v2': return 3
     else: sys.exit('Invalid timecodes/fps')
 
-def vTrunc(ts):
-    """Truncates a ns timestamp to 0.1ms precision."""
-    ts = ts / 10**6
-    tts = round(ts,1) if round(ts,1) == math.floor(ts*10)/10 else math.ceil(ts*10)/10-0.05
-    return int(round(tts*10**6))
+def truncate(ts,scale=0):
+    """Truncates a ns timestamp to 0.1*scale precision
+    with an extra decimal place if it rounds up.
+    
+    Default: 0 (0.1 ms)
+    
+    Examples: 3 (0.1 µs); 6 (0.1 ns)
+    
+    """
+    scale = abs(6-scale)
+    ots = ts / 10**scale
+    tts = math.floor(ots*10)*10 if round(ots,1) == math.floor(ots*10)/10 else math.ceil(ots*10)*10-5
+    return int(tts*10**(scale-2))
 
 def parseTc(tcfile,tmp,last):
     """Parses a timecodes file.
@@ -333,7 +341,7 @@ def parseTc(tcfile,tmp,last):
                     if i in r[0]:
                         fps = r[1]
             ts += fps.denominator/fps.numerator if i > 0 else 0
-            tmp.write('{}\n'.format(round(vTrunc(int(round(ts,7)*10**9))/10**6,6)))
+            tmp.write('{}\n'.format(round(truncate(int(round(ts,7)*10**9))/10**6,6)))
         tmp.close()
     elif version == 'v2':
         tc.close()
