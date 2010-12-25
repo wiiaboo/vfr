@@ -114,6 +114,7 @@ def main():
         print('In trims: %s' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
 
     # trims' offset calculation
+    Trimsts = []
     Trims2 = []
     Trims2ts = []
     tc = o.timecodes
@@ -136,6 +137,7 @@ def main():
         fn2ts = truncate(get_ts(fn2,tc,tc_type)[0])
         fn2tsaud = get_ts(fn2+1,tc,tc_type)
         adjacent = False
+        Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
 
         # calculate offsets for non-continuous trims
         if i == 0:
@@ -149,7 +151,7 @@ def main():
             # if it's not the first trim
             last = int(Trims[i-1][1])
             lastts = truncate(get_ts(last+1,tc,tc_type)[0])
-            adjacent = True if fn1-(last+1) == 0 else False
+            adjacent = True if not fn1-(last+1) else False
             offset += fn1-(last+1)
             offsetts += 0 if adjacent else fn1ts-lastts           
 
@@ -178,9 +180,9 @@ def main():
         Trims2.append([fn1,fn2])
         Trims2ts.append([fn1ts,fn2ts])
 
+    if o.verbose: print('In timecodes: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trimsts]))
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
     if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1])) for i in range(len(Trims2ts))]))
-    if o.verbose and o.input: print('Audio cuts timecodes: %s\n' % ', '.join(['(%s,%s)' % (audio[i], audio[i+1]) for i in range(len(audio)//2)]))
 
     # make qpfile
     if o.qpfile:

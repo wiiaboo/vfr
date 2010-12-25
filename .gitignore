@@ -1,6 +1,9 @@
-*.pyc
 *~
+*.pyc
+*.diff
+*.converted.txt
 .project
 .pydevproject
 .settings
 test/result*
+test/chap*
