@@ -121,7 +121,7 @@ def main():
     # Parse timecodes/fps
     tc, max = parse_tc(o.timecodes, int(Trims[-1][1]))
     if o.ofps and o.timecodes != o.ofps:
-        ofps, max2 = parse_tc(o.ofps, int(Trims[-1][1]))
+        ofps = parse_tc(o.ofps)[0]
 
     for i in range(len(Trims)):
         fn1 = int(Trims[i][0])
@@ -314,7 +314,7 @@ def truncate(ts,scale=0):
     tts = math.floor(ots*10)*10 if round(ots,1) == math.floor(ots*10)/10 else math.ceil(ots*10)*10-5
     return int(tts*10**(scale-2))
 
-def parse_tc(tcfile,last):
+def parse_tc(tcfile,last=0):
     """Parses a timecodes file or cfr fps.
     
     tcfile = timecodes file or cfr fps to parse
@@ -391,8 +391,6 @@ def get_ts(fn,tc,scale=0):
     elif tc_type == 'vfr':
         ts = round(Fraction.from_float(tc[fn])*10**(scale-3))
         return ts
-    else:
-        sys.exit("Couldn't get timestamps")
 
 def convert_fps(fn,old,new):
     """Returns a frame number from fps and ofps (ConvertFPS)
@@ -402,9 +400,9 @@ def convert_fps(fn,old,new):
     new = output fps ('24000/1001', etc.)
     
     """
-    old=get_ts(fn,old)
+    oldts=get_ts(fn,old)
     ofps=new[0]
-    new=old/10**3/(ofps.denominator/ofps.numerator)
+    new=oldts/10**9/(ofps.denominator/ofps.numerator)
     new=new if math.floor(new) == math.floor(abs(new-0.2)) else new-0.2
     return int(math.floor(new))
 
