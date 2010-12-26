@@ -117,25 +117,19 @@ def main():
     Trimsts = []
     Trims2 = []
     Trims2ts = []
-    tc = o.timecodes
-    tc_type = get_tc_type(tc)
-    if tc_type == 2:
-        if not os.path.isfile(tc[:-3]+"converted.txt"):
-            tc2 = tc[:-3]+"converted.txt"
-            tmp = tc2
-            parse_tc(tc,tmp,Trims[-1][1])
-        else:
-            tc2 = tc[:-3]+"converted.txt"
-        tc = tc2
-        tc_type = 3
+    
+    # Parse timecodes/fps
+    tc, max = parse_tc(o.timecodes, int(Trims[-1][1]))
+    if o.ofps and o.timecodes != o.ofps:
+        ofps, max2 = parse_tc(o.ofps, int(Trims[-1][1]))
 
     for i in range(len(Trims)):
         fn1 = int(Trims[i][0])
-        fn1tsaud = truncate(get_ts(fn1,tc,tc_type)[0])
-        fn1ts = truncate(fn1tsaud)
+        fn1ts = truncate(get_ts(fn1,tc))
+        fn1tsaud = get_ts(fn1,tc)
         fn2 = int(Trims[i][1])
-        fn2ts = truncate(get_ts(fn2,tc,tc_type)[0])
-        fn2tsaud = get_ts(fn2+1,tc,tc_type)
+        fn2ts = truncate(get_ts(fn2,tc))
+        fn2tsaud = get_ts(fn2+1,tc)
         adjacent = False
         Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
 
@@ -150,7 +144,7 @@ def main():
         else:
             # if it's not the first trim
             last = int(Trims[i-1][1])
-            lastts = truncate(get_ts(last+1,tc,tc_type)[0])
+            lastts = truncate(get_ts(last+1,tc))
             adjacent = True if not fn1-(last+1) else False
             offset += fn1-(last+1)
             offsetts += 0 if adjacent else fn1ts-lastts           
@@ -158,12 +152,15 @@ def main():
         if o.input:
             # make list with timecodes to cut audio
             if adjacent:
+                #print("adjacent")
                 del audio[-1]
-            else:
+            elif fn1 <= max:
+                #print("fn1tsaud",fmt_time(fn1tsaud))
                 audio.append(fmt_time(fn1tsaud))
 
-            if len(fn2tsaud) == 1:
-                audio.append(fmt_time(truncate(fn2tsaud[0])))
+            if fn2 <= max:
+                #print("fn1tsaud",fmt_time(fn1tsaud))
+                audio.append(fmt_time(fn2tsaud))
 
         # apply the offset to the trims
         fn1 -= offset
@@ -173,13 +170,14 @@ def main():
 
         # convert fps if --ofps
         if o.ofps and o.timecodes != o.ofps:
-            fn1 = convert_fps(fn1,tc,o.ofps)
-            fn2 = convert_fps(fn2,tc,o.ofps)
+            fn1 = convert_fps(fn1,tc,ofps)
+            fn2 = convert_fps(fn2,tc,ofps)
 
         # add trims and their timestamps to list
         Trims2.append([fn1,fn2])
         Trims2ts.append([fn1ts,fn2ts])
 
+    #print(max,fmt_time(get_ts(max,tc)))
     if o.verbose: print('In timecodes: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trimsts]))
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
     if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1])) for i in range(len(Trims2ts))]))
@@ -316,76 +314,83 @@ def truncate(ts,scale=0):
     tts = math.floor(ots*10)*10 if round(ots,1) == math.floor(ots*10)/10 else math.ceil(ots*10)*10-5
     return int(tts*10**(scale-2))
 
-def parse_tc(tcfile,tmp,last):
-    """Parses a timecodes file.
+def parse_tc(tcfile,last):
+    """Parses a timecodes file or cfr fps.
     
-    For now, it only parses v1 timecodes, creating a v2 timecodes file.
+    tcfile = timecodes file or cfr fps to parse
+    last = number of frames to be created in v1 parsing
     
     """
-    tc = open(tcfile)
-    ts = 0
-    ret = re.search('# timecode format (v\d)',tc.readline())
-    version = ret.group(1) if ret else sys.exit('file is not in a supported format')
-    tmp = open(tmp,'w')
-    if version == 'v1':
-        tclines = tc.readlines()
-        tc.close()
-        ret = re.search('Assume (\d+(?:\.\d+)?)(?i)',tclines[0])
-        assume = Fraction(ret.group(1)).limit_denominator(1001) if ret else sys.exit('there is no assumed fps')
-        overrides = {}
-        ret = [[range(int(i[0])+1,int(i[1])+2),Fraction(i[2]).limit_denominator(1001)] for i in re.findall('^(\d+),(\d+),(\d+(?:\.\d+)?)$(?m)',''.join(tclines[1:]))] if len(tclines) > 1 else None
-        if ret:
-            for ov_fps in ret:
-                for frame in ov_fps[0]:
-                    overrides[frame] = ov_fps[1]
-        ret = re.search('^# TDecimate Mode 3:  Last Frame = (\d)$(?m)',''.join(tclines))
-        last = int(ret) if ret else last
-        tmp.write('# timecode format v2\n')
-        for frame in range(int(last)+2):
-            fps = assume
-            if overrides and frame in overrides:
-                fps = overrides[frame]
-            ts += fps.denominator/fps.numerator if frame > 0 else 0
-            tmp.write('{:.6f}\n'.format(round(ts*10**3,6)))
-        tmp.close()
-    elif version == 'v2':
-        tc.close()
+    
+    ret = cfr_re.search(tcfile)
+    if ret and not os.path.isfile(tcfile):
+        type = 'cfr'
+        num = Fraction(ret.group(1))
+        den = Fraction(ret.group(2)) if ret.group(2) else 1
+        timecodes = Fraction(num,den)
+    
+    else:
+        type = 'vfr'
+        with open(tcfile) as tc:
+            tclines = tc.readlines()
+        ret = vfr_re.search(tclines[0])
+        version = ret.group(1) if ret else sys.exit('File is not in a supported format.')
+        del tclines[0]
+        
+        if version == 'v1':
+            ts = 0
+            timecodes = []
+            ret = re.search('^Assume (\d+(?:[.]\d+)?)(?i)',tclines[0])
+            assume = Fraction(ret.group(1)).limit_denominator(1001) if ret else sys.exit('there is no assumed fps')
+            overrides = {}
+            ret = [[range(int(i[0])+1,int(i[1])+2),Fraction(i[2]).limit_denominator(1001)] for i in re.findall('^(\d+),(\d+),(\d+(?:\.\d+)?)$(?m)',''.join(tclines[1:]))] if len(tclines) > 1 else None
+            if ret:
+                for ov_fps in ret:
+                    for frame in ov_fps[0]:
+                        overrides[frame] = ov_fps[1]
+            ret = re.search('^# TDecimate Mode 3:  Last Frame = (\d)$(?m)',''.join(tclines))
+            last = int(ret) if ret else last
+            for frame in range(int(last)+2):
+                fps = assume
+                if overrides and frame in overrides:
+                    fps = overrides[frame]
+                ts += fps.denominator/fps.numerator if frame > 0 else 0
+                timecodes.append(round(ts*10**3,6))
+        
+        elif version == 'v2':
+            if last > len(tclines):
+                p_last = last+2
+                last = len(tclines)
+                sample = last//100
+                average = 0
+                for i in range(-sample,0):
+                    average += round(float(tclines[-10])-float(tclines[-11]),6)
+                fps = Fraction.from_float(average / sample / 1000).limit_denominator(60000)
+                if tclines[-1][-1] is not '\n': tclines[-1] += '\n'
+                for fn in range(last,p_last):
+                    tclines.append(round(fn*fps,6))
+            timecodes = [round(float(line),6) for line in tclines]
 
-def get_ts(fn,tc,tc_type=1,scale=0):
+    return (timecodes, type), last
+
+def get_ts(fn,tc,scale=0):
     """Returns timestamps from a frame number and timecodes file or cfr fps
     
-    Default: 0 (ns)
+    fn = frame number
+    tc = (timecodes list or Fraction(fps),tc_type)
     
-    Examples: 3 (µs); 6 (ms); 9 (s)
+    scale default: 0 (ns)
+    examples: 3 (µs); 6 (ms); 9 (s)
     
     """
     scale = 9-scale
-    
-    # CFR
-    if tc_type == 1:
-        fps = cfr_re.search(tc).groups() if cfr_re.search(tc) else [re.search('(\d+)',tc).group(0),'1']
-        if not fps[1]: fps = [fps[0],'1']
-        ts = int(round((10**scale * fn * float(fps[1])) / int(fps[0])))
-        return [ts,]
-    # VFR
-    elif tc_type >= 2:
-        ts = linecache.getline(tc,fn+2)
-        if ts == '':
-            with open(tc) as file:
-                lines = len(file.readlines())
- 
-            nLines = math.ceil(lines / 100)
-            average = 0
-            for i in range(nLines):
-                average += (int(float(linecache.getline(tc,lines-i))*10**6) - int(float(linecache.getline(tc,lines-i-1))*10**6))
-            average = average / nLines
-            ts = int(fn * average)
-            if fn != lines-1:
-                print("Warning: Trim {} goes beyond last frame. Audio cutting not recommended.".format(fn))
-            return [ts,'out-of-bounds']
-        return [int(float(ts)*10**(scale-3)),]
-    elif len(tc) != 2:
-        sys.exit("get_ts() needs a list with timecode file and format determined by get_tc_type()")
+    tc, tc_type = tc
+    if tc_type == 'cfr':
+        ts = round(10**scale * fn * Fraction(tc.denominator,tc.numerator))
+        return ts
+    elif tc_type == 'vfr':
+        ts = round(Fraction.from_float(tc[fn])*10**(scale-3))
+        return ts
     else:
         sys.exit("Couldn't get timestamps")
 
@@ -397,9 +402,9 @@ def convert_fps(fn,old,new):
     new = output fps ('24000/1001', etc.)
     
     """
-    old=get_ts(fn,old,1,10**9)[0]
-    ofps = rat.search(new).groups() if rat.search(new) else [re.search('(\d+)',new).group(0),'1']
-    new=old/10**3/(float(ofps[1])/int(ofps[0]))
+    old=get_ts(fn,old)
+    ofps=new[0]
+    new=old/10**3/(ofps.denominator/ofps.numerator)
     new=new if math.floor(new) == math.floor(abs(new-0.2)) else new-0.2
     return int(math.floor(new))
 
