@@ -38,8 +38,8 @@ def main():
     p.add_option('--ofps', action="store", help='Output frames per second', dest="ofps")
     p.add_option('--timecodes', '-t', action="store", help='Timecodes file from the vfr video', dest="timecodes")
     p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
-    p.add_option('--chnames', '-n', action="store", help='Path to template file for chapter names', dest="chnames")
-    p.add_option('--qpfile', '-q', action="store", help='QPFile for x264 (frame-accurate only if used with final framecount)', dest="qpfile")
+    p.add_option('--chnames', '-n', action="store", help='Path to template file for chapter names (utf8 w/o bom)', dest="chnames")
+    p.add_option('--qpfile', '-q', action="store", help='QPFile for x264', dest="qpfile")
     p.add_option('--verbose', '-v', action="store_true", help='Verbose', dest="verbose")
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
     p.add_option('--remove', '-r', action="store_true", help='Remove cut files', dest="remove")
@@ -245,16 +245,15 @@ def main():
 		<EditionFlagHidden>{}</EditionFlagHidden>
 		<EditionFlagDefault>{}</EditionFlagDefault>
 		<EditionFlagOrdered>{}</EditionFlagOrdered>
-		<EditionUID>{}</EditionUID>
-""".format(0,1,0,EditionUID)
-            matroskaXmlEditionFooter = '	</EditionEntry>'
+		<EditionUID>{}</EditionUID>""".format(0,1,0,EditionUID)
+            matroskaXmlEditionFooter = '\n	</EditionEntry>'
             matroskaXmlFooter = '\n</Chapters>'
 
         # Assign names to each chapter if --chnames
         chapter_names = []
 
         if o.chnames:
-            with open(o.chnames, "r") as f:
+            with open(o.chnames, "r", encoding='utf_8') as f:
                 [chapter_names.append(line.strip()) for line in f.readlines()]
 
         if not o.chnames or len(chapter_names) != len(Trims2ts):
@@ -263,7 +262,7 @@ def main():
                 chapter_names.append("Chapter {:02d}".format(i+1))
 
         if not o.test:
-            with open(o.chapters, "w") as output:
+            with open(o.chapters, "w",encoding='utf_8') as output:
                 if chapter_type == 'MKV':
                     output.write(matroskaXmlHeader)
                     output.write(matroskaXmlEditionHeader)
@@ -420,20 +419,19 @@ def generate_chapters(start, end, num, name, type):
     if type == 'MKV':
         return """
 		<ChapterAtom>
-			<ChapterTimeStart>{}</ChapterTimeStart>
-			<ChapterTimeEnd>{}</ChapterTimeEnd>
+			<ChapterTimeStart>{start}</ChapterTimeStart>
+			<ChapterTimeEnd>{end}</ChapterTimeEnd>
 			<ChapterDisplay>
-				<ChapterString>{}</ChapterString>
-				<ChapterLanguage>{}</ChapterLanguage>
+				<ChapterString>{name}</ChapterString>
+				<ChapterLanguage>"eng"</ChapterLanguage>
 			</ChapterDisplay>
-		</ChapterAtom>
-"""[1:].format(start,end,name,"eng")
+		</ChapterAtom>""".format(**locals())
 
     elif type == 'OGM':
-        return 'CHAPTER{0:02d}={1}\nCHAPTER{0:02d}NAME={2}\n'.format(num,start,name)
+        return 'CHAPTER{num:02d}={start}\nCHAPTER{num:02d}NAME={name}\n'.format(**locals())
 
     elif type == 'X264':
-        return '{0} {1}\n'.format(start,name)
+        return '{start} {name}\n'.format(**locals())
 
 if __name__ == '__main__':
     main()
