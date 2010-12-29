@@ -308,7 +308,7 @@ def parse_tc(tcfile,last=0):
     """Parses a timecodes file or cfr fps.
     
     tcfile = timecodes file or cfr fps to parse
-    last = number of frames to be created in v1 parsing
+    max = number of frames to be created in v1 parsing
     
     """
     ret = cfr_re.search(tcfile)
@@ -324,6 +324,7 @@ def parse_tc(tcfile,last=0):
             tclines = tc.readlines()
         ret = vfr_re.search(tclines[0])
         version = ret.group(1) if ret else exit('File is not in a supported format.')
+        max += 2
         del tclines[0]
         
         if version == 'v1':
@@ -347,20 +348,19 @@ def parse_tc(tcfile,last=0):
                 timecodes.append(round(ts*10**3,6))
         
         elif version == 'v2':
-            if last > len(tclines):
-                p_last = last+2
-                last = len(tclines)
-                sample = last//100
+            if max > len(tclines):
+                temp_max = len(tclines)
+                sample = temp_max//100
                 average = 0
                 for i in range(-sample,0):
                     average += round(float(tclines[-10])-float(tclines[-11]),6)
                 fps = Fraction.from_float(average / sample / 1000).limit_denominator(60000)
                 if tclines[-1][-1] is not '\n': tclines[-1] += '\n'
-                for fn in range(last,p_last):
+                for fn in range(temp_max,max):
                     tclines.append(round(fn*fps,6))
             timecodes = [round(float(line),6) for line in tclines]
 
-    return (timecodes, type), last
+    return (timecodes, type), max
 
 def get_ts(fn,tc,scale=0):
     """Returns timestamps from a frame number and timecodes file or cfr fps
@@ -378,7 +378,7 @@ def get_ts(fn,tc,scale=0):
         ts = round(10**scale * fn * Fraction(tc.denominator,tc.numerator))
         return ts
     elif tc_type == 'vfr':
-        ts = round(Fraction.from_float(tc[fn])*10**(scale-3))
+        ts = round(tc[fn]*10**(scale-3))
         return ts
 
 def convert_fps(fn,old,new):
