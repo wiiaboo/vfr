@@ -1,12 +1,12 @@
 #!/usr/bin/env python3.1
 
-import sys
+from sys import exit
 import re
-import linecache
-import optparse
-import os
-import random
-import math
+from optparse import OptionParser
+from os import unlink
+from os.path import isfile
+from random import randint
+from math import floor, ceil
 from subprocess import call
 from fractions import Fraction
 try:
@@ -17,6 +17,7 @@ except ImportError:
 cfr_re = re.compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
 vfr_re = re.compile('# timecode format (v1|v2)')
 fpsre = re.compile("(?<!#)AssumeFPS\((\d+)\s*,\s*(\d+)\)(?i)")
+trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
 exts = {
     "xml":"MKV",
     "x264.txt":"X264"
@@ -28,9 +29,9 @@ mkvmerge = r'mkvmerge'
 
 def main():
 
-    p = optparse.OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
-                              version='VFR Chapter Creator 0.7.4.1',
-                              usage='%prog [options] infile.avs{}'.format(" [outfile.avs]" if writeAvisynth else ""))
+    p = OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
+                     version='VFR Chapter Creator 0.7.4.1',
+                     usage='%prog [options] infile.avs{}'.format(" [outfile.avs]" if writeAvisynth else ""))
     p.add_option('--label', '-l', action="store", help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim", dest="label")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
@@ -48,13 +49,13 @@ def main():
 
     if len(a) < 1:
         p.error("No avisynth script specified.")
-    elif not o.timecodes and os.path.isfile(a[0] + ".tc.txt"):
+    elif not o.timecodes and isfile(a[0] + ".tc.txt"):
         o.timecodes = a[0] + ".tc.txt"
     elif o.timecodes and o.fps:
         p.error("Can't use vfr input AND cfr input")
     elif o.timecodes and o.ofps:
         p.error("Can't use ofps with vfr input")
-    elif o.timecodes and os.path.isfile(o.timecodes):
+    elif o.timecodes and isfile(o.timecodes):
         o.timecodes = o.timecodes
     else:
         o.timecodes = o.fps
@@ -78,13 +79,12 @@ def main():
         # use only the first non-commented line with trims
         avs = avsfile.readlines()
         findTrims = re.compile("(?<!#)[^#]*\s*\.?\s*%s\((\d+)\s*,\s*(\d+)\)%s" % (o.label if o.label else "trim","" if o.label else "(?i)"))
-        trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
         for line in avs:
             if findTrims.match(line):
                 Trims = trimre.findall(line)
                 break
         if len(Trims) < 1:
-            sys.exit("Error: Avisynth script has no uncommented trims")
+            exit("Error: Avisynth script has no uncommented trims")
 
         # Look for AssumeFPS
         if not o.timecodes:
@@ -207,7 +207,7 @@ def main():
             if cutExec == 1:
                 print("Mkvmerge exited with warnings: %d" % cutExec)
             elif cutExec == 2:
-                sys.exit("Failed to execute mkvmerge: %d" % cutExec)
+                exit("Failed to execute mkvmerge: %d" % cutExec)
         if o.merge:
             merge = []
             for i in range(1,len(audio)+2):
@@ -220,13 +220,13 @@ def main():
                 if mergeExec == 1:
                     print("Mkvmerge exited with warnings: %d" % mergeExec)
                 elif mergeExec == 2:
-                    sys.exit("Failed to execute mkvmerge: %d" % mergeExec)
+                    exit("Failed to execute mkvmerge: %d" % mergeExec)
 
         if o.remove:
             remove = ['%s.split-%03d.mka' % (o.output, i) for i in range(1,len(audio)+2)]
             if o.verbose: print('\nDeleting: %s\n' % ', '.join(remove))
             if not o.test:
-                [os.unlink(i) if os.path.exists(i) else True for i in remove]
+                [unlink(i) if isfile(i) else True for i in remove]
 
     # make offseted avs
     if writeAvisynth and len(a) > 1:
@@ -238,7 +238,7 @@ def main():
     if chapter_type:
 
         if chapter_type == 'MKV':
-            EditionUID = random.randint(10**5,10**6)
+            EditionUID = randint(10**5,10**6)
             matroskaXmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Chapters>'
             matroskaXmlEditionHeader = """
 	<EditionEntry>
@@ -290,15 +290,6 @@ def fmt_time(ts,msp=None):
     else:
         return '{:02.0f}:{:02.0f}:{:012.9f}'.format(h, m, s)
 
-def get_tc_type(timecodes):
-    """Determines the format of the timecodes provided using regex."""
-    if cfr_re.match(timecodes): return 1
-    elif vfr_re.match(linecache.getline(timecodes,1)):
-        type = vfr_re.match(linecache.getline(timecodes,1)).group(1)
-        if type == 'v1': return 2
-        elif type == 'v2': return 3
-    else: sys.exit('Invalid timecodes/fps')
-
 def truncate(ts,scale=0):
     """Truncates a ns timestamp to 0.1*scale precision
     with an extra decimal place if it rounds up.
@@ -310,7 +301,7 @@ def truncate(ts,scale=0):
     """
     scale = abs(6-scale)
     ots = ts / 10**scale
-    tts = math.floor(ots*10)*10 if round(ots,1) == math.floor(ots*10)/10 else math.ceil(ots*10)*10-5
+    tts = floor(ots*10)*10 if round(ots,1) == floor(ots*10)/10 else ceil(ots*10)*10-5
     return int(tts*10**(scale-2))
 
 def parse_tc(tcfile,last=0):
@@ -320,9 +311,8 @@ def parse_tc(tcfile,last=0):
     last = number of frames to be created in v1 parsing
     
     """
-    
     ret = cfr_re.search(tcfile)
-    if ret and not os.path.isfile(tcfile):
+    if ret and not isfile(tcfile):
         type = 'cfr'
         num = Fraction(ret.group(1))
         den = Fraction(ret.group(2)) if ret.group(2) else 1
@@ -333,14 +323,14 @@ def parse_tc(tcfile,last=0):
         with open(tcfile) as tc:
             tclines = tc.readlines()
         ret = vfr_re.search(tclines[0])
-        version = ret.group(1) if ret else sys.exit('File is not in a supported format.')
+        version = ret.group(1) if ret else exit('File is not in a supported format.')
         del tclines[0]
         
         if version == 'v1':
             ts = 0
             timecodes = []
             ret = re.search('^Assume (\d+(?:[.]\d+)?)(?i)',tclines[0])
-            assume = Fraction(ret.group(1)).limit_denominator(1001) if ret else sys.exit('there is no assumed fps')
+            assume = Fraction(ret.group(1)).limit_denominator(1001) if ret else exit('there is no assumed fps')
             overrides = {}
             ret = [[range(int(i[0])+1,int(i[1])+2),Fraction(i[2]).limit_denominator(1001)] for i in re.findall('^(\d+),(\d+),(\d+(?:\.\d+)?)$(?m)',''.join(tclines[1:]))] if len(tclines) > 1 else None
             if ret:
@@ -402,8 +392,8 @@ def convert_fps(fn,old,new):
     oldts=get_ts(fn,old)
     ofps=new[0]
     new=oldts/10**9/(ofps.denominator/ofps.numerator)
-    new=new if math.floor(new) == math.floor(abs(new-0.2)) else new-0.2
-    return int(math.floor(new))
+    new=new if floor(new) == floor(abs(new-0.2)) else new-0.2
+    return int(floor(new))
 
 def generate_chapters(start, end, num, name, type):
     """Generates chapters
