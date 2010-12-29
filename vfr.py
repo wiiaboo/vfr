@@ -304,6 +304,30 @@ def truncate(ts,scale=0):
     tts = floor(ots*10)*10 if round(ots,1) == floor(ots*10)/10 else ceil(ots*10)*10-5
     return int(tts*10**(scale-2))
 
+def correct_to_ntsc(fps):
+    """Rounds framerate to NTSC values if close enough.
+    
+    Takes and returns a Rational number.
+    
+    Ported from FFmpegsource.
+    
+    """
+    TempFPS = Fraction(fps.denominator,fps.numerator)
+    
+    if TempFPS.numerator == 1:
+        Num = TempFPS.denominator
+        Den = TempFPS.numerator
+    else:
+        FTimebase = TempFPS.numerator/TempFPS.denominator
+        NearestNTSC = floor(FTimebase * 1001 + 0.5) / 1001
+        SmallInterval = 1/120
+
+        if abs(FTimebase - NearestNTSC) < SmallInterval:
+            Num = int((1001 / FTimebase) + 0.5)
+            Den = 1001
+
+    return Fraction(Num, Den)
+
 def parse_tc(tcfile,last=0):
     """Parses a timecodes file or cfr fps.
     
