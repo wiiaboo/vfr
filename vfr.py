@@ -9,6 +9,7 @@ from random import randint
 from math import floor, ceil
 from subprocess import call
 from fractions import Fraction
+from io import StringIO
 try:
     from chapparse import writeAvisynth
 except ImportError:
@@ -38,6 +39,7 @@ def main():
     p.add_option('--fps', '-f', action="store", help='Frames per second (for cfr input)', dest="fps")
     p.add_option('--ofps', action="store", help='Output frames per second', dest="ofps")
     p.add_option('--timecodes', '-t', action="store", help='Timecodes file from the vfr video', dest="timecodes")
+    p.add_option('--otimecodes', action="store", help='Output v2 timecodes', dest="otc")
     p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
     p.add_option('--chnames', '-n', action="store", help='Path to template file for chapter names (utf8 w/o bom)', dest="chnames")
     p.add_option('--qpfile', '-q', action="store", help='QPFile for x264', dest="qpfile")
@@ -119,7 +121,7 @@ def main():
     Trims2ts = []
     
     # Parse timecodes/fps
-    tc, max = parse_tc(o.timecodes, int(Trims[-1][1]))
+    tc, max = parse_tc(o.timecodes, int(Trims[-1][1]),o.otc)
     if o.ofps and o.timecodes != o.ofps:
         ofps = parse_tc(o.ofps)[0]
 
@@ -328,11 +330,43 @@ def correct_to_ntsc(fps):
 
     return Fraction(Num, Den)
 
-def parse_tc(tcfile,last=0):
+def convert_v1_to_v2(inf,outf,nf,fpsa):
+    """Converts a given v1 timecodes file to v2 timecodes.
+    
+    Ported from tritical's tcConv.
+    
+    """
+    ct = 0.0
+    mspfa = 1000/fpsa
+    frmStart = frmStop = frmLast = 0
+    line=inf.readline()
+    while line != '' and frmLast < nf:
+        ovr = re.match('(\d+),(\d+),(\d+(?:[.]\d+)?)', line)
+        if ovr:
+            frmStart,frmStop,fps = ovr.groups()
+            frmStart = int(frmStart)
+            frmStop = int(frmStop)
+            mspf = 1000/correct_to_ntsc(Fraction(fps))
+            while (frmLast < frmStart and frmLast < nf):
+                outf.write("%3.6f\n" % ct)
+                frmLast += 1
+                ct += mspfa
+            while (frmLast <= frmStop and frmLast < nf):
+                outf.write("%3.6f\n" % ct)
+                frmLast += 1
+                ct += mspf
+        line=inf.readline()
+    while frmLast < nf:
+        outf.write("%3.6f\n" % ct)
+        frmLast += 1
+        ct += mspfa
+
+def parse_tc(tcfile, max=0, otc=None):
     """Parses a timecodes file or cfr fps.
     
     tcfile = timecodes file or cfr fps to parse
     max = number of frames to be created in v1 parsing
+    otc = output v2 timecodes filename
     
     """
     ret = cfr_re.search(tcfile)
@@ -341,6 +375,15 @@ def parse_tc(tcfile,last=0):
         num = Fraction(ret.group(1))
         den = Fraction(ret.group(2)) if ret.group(2) else 1
         timecodes = Fraction(num,den)
+        if otc:
+            otc = open(otc,"w")
+            ct = 0
+            mspf = 1000/timecodes
+            otc.write("# timecode format v2\n")
+            for fn in range(max+2):
+                otc.write("%3.6f\n" % ct)
+                ct += mspf
+            otc.close()
     
     else:
         type = 'vfr'
@@ -352,24 +395,20 @@ def parse_tc(tcfile,last=0):
         del tclines[0]
         
         if version == 'v1':
-            ts = 0
+            outf = StringIO()
             timecodes = []
             ret = re.search('^Assume (\d+(?:[.]\d+)?)(?i)',tclines[0])
-            assume = Fraction(ret.group(1)).limit_denominator(1001) if ret else exit('there is no assumed fps')
-            overrides = {}
-            ret = [[range(int(i[0])+1,int(i[1])+2),Fraction(i[2]).limit_denominator(1001)] for i in re.findall('^(\d+),(\d+),(\d+(?:\.\d+)?)$(?m)',''.join(tclines[1:]))] if len(tclines) > 1 else None
-            if ret:
-                for ov_fps in ret:
-                    for frame in ov_fps[0]:
-                        overrides[frame] = ov_fps[1]
-            ret = re.search('^# TDecimate Mode 3:  Last Frame = (\d)$(?m)',''.join(tclines))
-            last = int(ret) if ret else last
-            for frame in range(int(last)+2):
-                fps = assume
-                if overrides and frame in overrides:
-                    fps = overrides[frame]
-                ts += fps.denominator/fps.numerator if frame > 0 else 0
-                timecodes.append(round(ts*10**3,6))
+            assume = correct_to_ntsc(Fraction(ret.group(1))) if ret else exit('there is no assumed fps')
+            inf = StringIO(''.join(tclines[1:])) if len(tclines) > 1 else StringIO('')
+            convert_v1_to_v2(inf,outf,max,assume)
+            if otc:
+                otc = open(otc,"w")
+                otc.write("# timecode format v2\n")
+                otc.write(outf.getvalue())
+                otc.close()
+            outf.seek(0)
+            timecodes = [round(float(line),6) for line in outf.readlines()]
+            outf.close()
         
         elif version == 'v2':
             if max > len(tclines):
