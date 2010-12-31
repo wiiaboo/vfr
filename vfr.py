@@ -125,8 +125,8 @@ def main():
     if o.ofps and o.timecodes != o.ofps:
         ofps = parse_tc(o.ofps)[0]
         if o.otc:
-        max = convert_fps(int(Trims[-1][1]),tc,ofps)
-        parse_tc(o.ofps,max+2,o.otc)
+            max = convert_fps(int(Trims[-1][1]),tc,ofps)
+            parse_tc(o.ofps,max+2,o.otc)
 
     for i in range(len(Trims)):
         fn1 = int(Trims[i][0])
