@@ -1,16 +1,15 @@
 #!/usr/bin/env python3.1
 
-from sys import argv, exit
-from fractions import Fraction
+from sys import argv
 try:
-    from vfr import parse_tc, get_ts
+    from vfr import parse_tc
 except ImportError:
-    parse_tc = False
+    exit("tcconv requires vfr.py in order to work")
 
-if len(sys.argv) == 4:
-    fps=sys.argv[1]
-    frames=int(sys.argv[3])
+if len(argv) == 4:
+    fps = argv[1]
+    tc = argv[2]
+    frames = int(argv[3])
     parse_tc(fps, frames, tc)
-
 else:
-    print("tccreator.py <fps/v1 timecodes> <output v2 timecodes> <frames>")
+    exit("tcconv.py <fps/v1 timecodes> <output v2 timecodes> <frames>")
