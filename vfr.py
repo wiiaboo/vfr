@@ -22,7 +22,7 @@ mkvmerge = r'mkvmerge'
 def main():
     from optparse import OptionParser
     p = OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
-                     version='VFR Chapter Creator 0.7.5',
+                     version='VFR Chapter Creator 0.7.6',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l',
                  action="store",
