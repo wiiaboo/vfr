@@ -30,10 +30,9 @@ def main():
                  dest="label")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
-    p.add_option('--fps', '-f', action="store", help='Frames per second (for cfr input)', dest="fps")
+    p.add_option('--fps', '-f', action="store", help='Frames per second or Timecodes file', dest="fps")
     p.add_option('--ofps', action="store", help='Output frames per second', dest="ofps")
-    p.add_option('--timecodes', '-t', action="store", help='Timecodes file from the vfr video', dest="timecodes")
-    p.add_option('--otimecodes', action="store", help='Output v2 timecodes', dest="otc")
+    p.add_option('--timecodes', action="store", help='Output v2 timecodes', dest="otc")
     p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
     p.add_option('--chnames', '-n', action="store", help='Path to template file for chapter names (utf8 w/o bom)', dest="chnames")
     p.add_option('--qpfile', '-q', action="store", help='QPFile for x264', dest="qpfile")
@@ -45,16 +44,8 @@ def main():
 
     if len(a) < 1:
         p.error("No avisynth script specified.")
-    elif not o.timecodes and isfile(a[0] + ".tc.txt"):
-        o.timecodes = a[0] + ".tc.txt"
-    elif o.timecodes and o.fps:
-        p.error("Can't use vfr input AND cfr input")
-    elif o.timecodes and o.ofps:
-        p.error("Can't use ofps with vfr input")
-    elif o.timecodes and isfile(o.timecodes):
-        o.timecodes = o.timecodes
-    else:
-        o.timecodes = o.fps
+    elif isfile(o.fps) and o.ofps:
+        p.error("Can't use --ofps with timecodes file input")
 
     #Determine chapter type
     if o.chapters:
@@ -85,22 +76,22 @@ def main():
             exit("Error: Avisynth script has no uncommented trims")
 
         # Look for AssumeFPS
-        if not o.timecodes:
+        if not o.fps:
             for line in avs:
                 if fpsre.search(line):
-                    o.timecodes = '/'.join([i for i in fpsre.search(line).groups()])
+                    o.fps = '/'.join([i for i in fpsre.search(line).groups()])
                     if o.verbose:
-                        print("\nFound AssumeFPS, setting CFR (%s)" % o.timecodes)
+                        print("\nFound AssumeFPS, setting CFR (%s)" % o.fps)
                     break
 
-    if not o.timecodes: o.timecodes = defaultFps
+    o.fps = defaultFps if not o.fps else o.fps
 
     if o.verbose:
         status =  "Avisynth file:   %s\n" % a[0]
         status += "Label:           %s\n" % o.label if o.label else ""
         status += "Audio file:      %s\n" % o.input if o.input else ""
         status += "Cut Audio file:  %s\n" % o.output if o.output else ""
-        status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.ofps != o.timecodes else ""
+        status += "Timecodes/FPS:   %s%s\n" % (o.fps," to "+o.ofps if o.ofps else "") if o.ofps != o.fps else ""
         status += "Output v2 Tc:    %s\n" % o.otc if o.otc else ""
         status += "Chapters file:   %s%s\n" % (o.chapters," (%s)" % chapter_type if chapter_type else "") if o.chapters else ""
         status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
@@ -118,8 +109,8 @@ def main():
     Trims2ts = []
     
     # Parse timecodes/fps
-    tc, max = parse_tc(o.timecodes, int(Trims[-1][1]),o.otc)
-    if o.ofps and o.timecodes != o.ofps:
+    tc, max = parse_tc(o.fps, int(Trims[-1][1]),o.otc)
+    if o.ofps and o.fps != o.ofps:
         ofps = parse_tc(o.ofps)[0]
         if o.otc:
             max = convert_fps(int(Trims[-1][1]),tc,ofps)
@@ -168,7 +159,7 @@ def main():
         fn2ts -= offsetts
 
         # convert fps if --ofps
-        if o.ofps and o.timecodes != o.ofps:
+        if o.ofps and o.fps != o.ofps:
             fn1 = convert_fps(fn1,tc,ofps)
             fn2 = convert_fps(fn2,tc,ofps)
 
