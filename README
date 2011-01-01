@@ -19,8 +19,8 @@ Only the .avs with trims is required for vfr.py to run. You can use -v and/or --
 
 Usage:
 
-vfr.py -i audio.aac -o audio.cut.mka -f 30/1.001 -t timecodes.txt -l tRim -c chapters.xml \
--n chnames.txt -q qpfile.qpf -vmr --ofps 24/1.001 --otimecodes v2.txt --test trims.avs outtrims.avs
+vfr.py -i audio.aac -o audio.cut.mka -f 30/1.001 -l tRim -c chapters.xml \
+-n chnames.txt -q qpfile.qpf -vmr --ofps 24/1.001 --timecodes v2.txt --test trims.avs outtrims.avs
 
 Required:
 trims.avs = Gets first uncommented line starting with trims from this Avisynth script
@@ -29,10 +29,9 @@ Optional:
 -i = Audio to be cut (takes whatever mkvmerge takes)
 -o = Cut audio inside .mka
      Default: input.cut.mka
--f = Frames per second (takes "25", "24000/1001", "30000:1001", "24/1.001" and "30:1.001" as input)
+-f = Frames per second or timecodes file if vfr input
+     (takes "25", "24000/1001", "30000:1001", "24/1.001" and "30:1.001" as cfr input)
      Default: 30000/1001
--t = v1 or v2 timecodes file for vfr capabilities
-     Default: -f
 -l = Look for a trim() statement only on lines starting with LABEL, interpreted as a regular expression.
      Default: case insensitive trim
 -c = Chapters file. If extension is 'xml', outputs MKV Chapters;
@@ -44,7 +43,7 @@ Optional:
 -r = Remove split audio files after merging
 --ofps = Output FPS (used in qpfile, v2 timecodes and avs export)
          Default: -f
---otimecodes = Output v2 timecodes (from fps and v1 parsing) (if using --ofps, outputs v2 timecodes using this)
+--timecodes = Output v2 timecodes (from fps and v1 parsing) (if using --ofps, outputs v2 timecodes using this)
 --test = Test Mode (doesn't create new files)
 outtrims.avs = If chapparse.py is present, outputs .avs with offset and converted trims
 
