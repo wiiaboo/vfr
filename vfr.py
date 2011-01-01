@@ -1,24 +1,16 @@
 #!/usr/bin/env python3.1
 
 from sys import exit
-import re
-from optparse import OptionParser
-from os import unlink
-from os.path import isfile
-from random import randint
+from re import compile
+from os.path import isfile, splitext
 from math import floor, ceil
-from subprocess import call
 from fractions import Fraction
 from io import StringIO
-try:
-    from chapparse import writeAvisynth
-except ImportError:
-    writeAvisynth = False
 
-cfr_re = re.compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
-vfr_re = re.compile('# timecode format (v1|v2)')
-fpsre = re.compile("(?<!#)AssumeFPS\((\d+)\s*,\s*(\d+)\)(?i)")
-trimre = re.compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
+cfr_re = compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
+vfr_re = compile('# timecode format (v1|v2)')
+fpsre = compile("(?<!#)AssumeFPS\((\d+)\s*,\s*(\d+)\)(?i)")
+trimre = compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
 exts = {
     "xml":"MKV",
     "x264.txt":"X264"
@@ -29,11 +21,14 @@ defaultFps = "30000/1001"
 mkvmerge = r'mkvmerge'
 
 def main():
-
+    from optparse import OptionParser
     p = OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
                      version='VFR Chapter Creator 0.7.5',
-                     usage='%prog [options] infile.avs{}'.format(" [outfile.avs]" if writeAvisynth else ""))
-    p.add_option('--label', '-l', action="store", help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim", dest="label")
+                     usage='%prog [options] infile.avs [outfile.avs]')
+    p.add_option('--label', '-l',
+                 action="store",
+                 help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim",
+                 dest="label")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
     p.add_option('--fps', '-f', action="store", help='Frames per second (for cfr input)', dest="fps")
@@ -64,14 +59,15 @@ def main():
 
     #Determine chapter type
     if o.chapters:
-        cExt = re.search("\.(%s)" % "|".join(exts.keys()),o.chapters,re.I)
-        chapter_type = exts[cExt.group(1).lower()] if cExt else "OGM"
+        chre = compile("\.(%s)(?i)" % "|".join(exts.keys()))
+        ret = chre.search(o.chapters)
+        chapter_type = exts[ret.group(1).lower()] if ret else "OGM"
     else:
         chapter_type = ''
 
     if not o.output and o.input:
-        ret = re.search("(.*)\.\w*$",o.input)
-        o.output = '%s.cut.mka' % ret.group(1) if ret else o.input
+        ret = splitext(o.input)
+        o.output = '%s.cut.mka' % ret[0]
 
     quiet = '' if o.verbose else '-q'
     audio = []
@@ -80,12 +76,13 @@ def main():
     with open(a[0], "r") as avsfile:
         # use only the first non-commented line with trims
         avs = avsfile.readlines()
-        findTrims = re.compile("(?<!#)[^#]*\s*\.?\s*%s\((\d+)\s*,\s*(\d+)\)%s" % (o.label if o.label else "trim","" if o.label else "(?i)"))
+        findTrims = compile("(?<!#)[^#]*\s*\.?\s*%s\((\d+)\s*,\s*(\d+)\)%s" % (o.label if o.label else "trim","" if o.label else "(?i)"))
         for line in avs:
             if findTrims.match(line):
                 Trims = trimre.findall(line)
                 break
-        if len(Trims) < 1:
+        nt1 = len(Trims)
+        if not Trims:
             exit("Error: Avisynth script has no uncommented trims")
 
         # Look for AssumeFPS
@@ -105,6 +102,7 @@ def main():
         status += "Audio file:      %s\n" % o.input if o.input else ""
         status += "Cut Audio file:  %s\n" % o.output if o.output else ""
         status += "Timecodes/FPS:   %s%s\n" % (o.timecodes," to "+o.ofps if o.ofps else "") if o.ofps != o.timecodes else ""
+        status += "Output v2 Tc:    %s\n" % o.otc if o.otc else ""
         status += "Chapters file:   %s%s\n" % (o.chapters," (%s)" % chapter_type if chapter_type else "") if o.chapters else ""
         status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
         status += "\n"
@@ -113,7 +111,7 @@ def main():
         status += "Test Mode:       %s\n" % o.test if o.test else ""
 
         print(status)
-        print('In trims: %s' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
+        print('In trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
 
     # trims' offset calculation
     Trimsts = []
@@ -128,7 +126,7 @@ def main():
             max = convert_fps(int(Trims[-1][1]),tc,ofps)
             parse_tc(o.ofps,max+2,o.otc)
 
-    for i in range(len(Trims)):
+    for i in range(nt1):
         fn1 = int(Trims[i][0])
         fn1ts = truncate(get_ts(fn1,tc))
         fn1tsaud = get_ts(fn1,tc)
@@ -157,14 +155,11 @@ def main():
         if o.input:
             # make list with timecodes to cut audio
             if adjacent:
-                #print("adjacent")
                 del audio[-1]
             elif fn1 <= max:
-                #print("fn1tsaud",fmt_time(fn1tsaud))
                 audio.append(fmt_time(fn1tsaud))
 
             if fn2 <= max:
-                #print("fn1tsaud",fmt_time(fn1tsaud))
                 audio.append(fmt_time(fn2tsaud))
 
         # apply the offset to the trims
@@ -182,10 +177,10 @@ def main():
         Trims2.append([fn1,fn2])
         Trims2ts.append([fn1ts,fn2ts])
 
-    #print(max,fmt_time(get_ts(max,tc)))
+    nt2 = len(Trims2ts)
     if o.verbose: print('In timecodes: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trimsts]))
     if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
-    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1])) for i in range(len(Trims2ts))]))
+    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1])) for i in range(nt2)]))
 
     # make qpfile
     if o.qpfile:
@@ -197,8 +192,10 @@ def main():
 
     # make audio cuts
     if o.input:
-        delayRe = re.search('DELAY ([-]?\d+)',o.input)
-        delay = delayRe.group(1) if delayRe else '0'
+        from subprocess import call
+        delre = compile('DELAY ([-]?\d+)')
+        ret = delre.search(o.input)
+        delay = ret.group(1) if ret else '0'
         if Trims[0][0] == 0:
             includefirst = True
             audio = audio[1:]
@@ -215,7 +212,8 @@ def main():
                 exit("Failed to execute mkvmerge: %d" % cutExec)
         if o.merge:
             merge = []
-            for i in range(1,len(audio)+2):
+            max_audio = len(audio)+2
+            for i in range(1,max_audio):
                 if (includefirst == True and i % 2 != 0) or (includefirst == False and i % 2 == 0):
                     merge.append('"%s.split-%03d.mka"' % (o.output, i))
             mergeCmd = '"%s" -o "%s" %s %s' % (mkvmerge,o.output, ' +'.join(merge), quiet)
@@ -228,20 +226,25 @@ def main():
                     exit("Failed to execute mkvmerge: %d" % mergeExec)
 
         if o.remove:
-            remove = ['%s.split-%03d.mka' % (o.output, i) for i in range(1,len(audio)+2)]
+            remove = ['%s.split-%03d.mka' % (o.output, i) for i in range(1,max_audio)]
             if o.verbose: print('\nDeleting: %s\n' % ', '.join(remove))
             if not o.test:
+                from os import unlink
                 [unlink(i) if isfile(i) else True for i in remove]
 
     # make offseted avs
-    if writeAvisynth and len(a) > 1:
-        fNum = [i[0] for i in Trims2]
-        set = {'avs':'"'+a[1]+'"','input':'','resize':''}
-        writeAvisynth(set,fNum)
+    if len(a) > 1:
+        try:
+            from chapparse import writeAvisynth
+            fNum = [i[0] for i in Trims2]
+            set = {'avs':'"'+a[1]+'"','input':'','resize':''}
+            writeAvisynth(set,fNum)
+        except ImportError:
+            print('Script chapparse.py needed for avisynth output to work.')
 
     # write chapters
     if chapter_type:
-
+        from random import randint
         if chapter_type == 'MKV':
             EditionUID = randint(10**5,10**6)
             matroskaXmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Chapters>'
@@ -256,14 +259,16 @@ def main():
 
         # Assign names to each chapter if --chnames
         chapter_names = []
+        nc = 0
 
         if o.chnames:
             with open(o.chnames, "r", encoding='utf_8') as f:
                 [chapter_names.append(line.strip()) for line in f.readlines()]
+                nc = len(chapter_names)
 
-        if not o.chnames or len(chapter_names) != len(Trims2ts):
+        if not o.chnames or chapter_names < Trims2ts:
             # The if statement is for clarity; it doesn't actually do anything useful
-            for i in range(len(chapter_names),len(Trims2ts)):
+            for i in range(nc,nt2):
                 chapter_names.append("Chapter {:02d}".format(i+1))
 
         if not o.test:
@@ -271,11 +276,11 @@ def main():
                 if chapter_type == 'MKV':
                     output.write(matroskaXmlHeader)
                     output.write(matroskaXmlEditionHeader)
-                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1]),i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
+                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1]),i+1,chapter_names[i],chapter_type)) for i in range(nt2)]
                     output.write(matroskaXmlEditionFooter)
                     output.write(matroskaXmlFooter)
                 else:
-                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0],1), fmt_time(Trims2ts[i][1],1),i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
+                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0],1), fmt_time(Trims2ts[i][1],1),i+1,chapter_names[i],chapter_type)) for i in range(nt2)]
         if o.verbose:
             print("Writing {} Chapters to {}".format(chapter_type,o.chapters))
 
