@@ -5,7 +5,6 @@ from re import compile
 from os.path import isfile, splitext
 from math import floor, ceil
 from fractions import Fraction
-from io import StringIO
 
 cfr_re = compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
 vfr_re = compile('# timecode format (v1|v2)')
@@ -314,7 +313,7 @@ def truncate(ts,scale=0):
     tts = floor(ots*10)*10 if round(ots,1) == floor(ots*10)/10 else ceil(ots*10)*10-5
     return int(tts*10**(scale-2))
 
-def correct_to_ntsc(fps):
+def correct_to_ntsc(fps,ms=None):
     """Rounds framerate to NTSC values if close enough.
     
     Takes and returns a Rational number.
@@ -322,6 +321,7 @@ def correct_to_ntsc(fps):
     Ported from FFmpegsource.
     
     """
+    fps = Fraction(fps)
     TempFPS = Fraction(fps.denominator,fps.numerator)
     
     if TempFPS.numerator == 1:
@@ -336,38 +336,43 @@ def correct_to_ntsc(fps):
             Num = int((1001 / FTimebase) + 0.5)
             Den = 1001
 
-    return Fraction(Num, Den)
+    if not ms:
+        return Fraction(Num, Den)
+    else:
+        return Den/(Num/1000)
 
-def convert_v1_to_v2(inf,outf,nf,fpsa):
+def convert_v1_to_v2(v1,max,asm,v2=None,last=0):
     """Converts a given v1 timecodes file to v2 timecodes.
     
     Ported from tritical's tcConv.
     
     """
-    ct = 0.0
-    mspfa = 1000/fpsa
-    frmStart = frmStop = frmLast = 0
-    line=inf.readline()
-    while line != '' and frmLast < nf:
-        ovr = re.match('(\d+),(\d+),(\d+(?:[.]\d+)?)', line)
-        if ovr:
-            frmStart,frmStop,fps = ovr.groups()
-            frmStart = int(frmStart)
-            frmStop = int(frmStop)
-            mspf = 1000/correct_to_ntsc(Fraction(fps))
-            while (frmLast < frmStart and frmLast < nf):
-                outf.write("%3.6f\n" % ct)
-                frmLast += 1
-                ct += mspfa
-            while (frmLast <= frmStop and frmLast < nf):
-                outf.write("%3.6f\n" % ct)
-                frmLast += 1
-                ct += mspf
-        line=inf.readline()
-    while frmLast < nf:
-        outf.write("%3.6f\n" % ct)
-        frmLast += 1
-        ct += mspfa
+    ts = fn1 = fn2 = 0
+    asm = correct_to_ntsc(asm,True)
+    o=[]
+    ap=o.append
+    en=str.encode
+    for line in v1:
+        ovr = line.split(',')
+        if len(ovr) == 3:
+            fn1,fn2,fps = ovr
+            fn1 = int(fn1)
+            fn2 = int(fn2)
+            ovf = correct_to_ntsc(fps,True)
+            while (last < fn1 and last < max):
+                ap(ts)
+                last,ts=last+1,ts+asm
+            while (last <= fn2 and last < max):
+                ap(ts)
+                last,ts=last+1,ts+ovf
+    while last < max:
+        ap(ts)
+        last,ts=last+1,ts+asm
+    if v2:
+        with open(v2,'wb') as v2f:
+            from os import linesep as ls
+            v2f.writelines([en('# timecode format v2'+ls)]+[en(('%3.6f' % s)+ls ) for s in o])
+    return o
 
 def parse_tc(tcfile, max=0, otc=None):
     """Parses a timecodes file or cfr fps.
@@ -384,52 +389,41 @@ def parse_tc(tcfile, max=0, otc=None):
         den = Fraction(ret.group(2)) if ret.group(2) else 1
         timecodes = Fraction(num,den)
         if otc:
-            otc = open(otc,"w")
-            ct = 0
-            mspf = 1000/timecodes
-            otc.write("# timecode format v2\n")
-            for fn in range(max+2):
-                otc.write("%3.6f\n" % ct)
-                ct += mspf
-            otc.close()
+            convert_v1_to_v2([],max+2,timecodes,otc)
     
     else:
         type = 'vfr'
         with open(tcfile) as tc:
-            tclines = tc.readlines()
-        ret = vfr_re.search(tclines[0])
+            v1 = tc.readlines()
+        ret = vfr_re.search(v1.pop(0))
         version = ret.group(1) if ret else exit('File is not in a supported format.')
         max += 2
-        del tclines[0]
-        
+
         if version == 'v1':
-            outf = StringIO()
-            timecodes = []
-            ret = re.search('^Assume (\d+(?:[.]\d+)?)(?i)',tclines[0])
-            assume = correct_to_ntsc(Fraction(ret.group(1))) if ret else exit('there is no assumed fps')
-            inf = StringIO(''.join(tclines[1:])) if len(tclines) > 1 else StringIO('')
-            convert_v1_to_v2(inf,outf,max,assume)
-            if otc:
-                otc = open(otc,"w")
-                otc.write("# timecode format v2\n")
-                otc.write(outf.getvalue())
-                otc.close()
-            outf.seek(0)
-            timecodes = [round(float(line),6) for line in outf.readlines()]
-            outf.close()
-        
+            ret = v1.pop(0).split(' ')
+            asm = ret[1] if len(ret) == 2 else exit('there is no assumed fps')
+            if v1:
+                ret = convert_v1_to_v2(v1,max,asm,otc)
+                timecodes = ['%3.6f\n' % i for i in ret]
+            else:
+                timecodes = correct_to_ntsc(asm)
+                type = 'cfr'
+                if otc:
+                    convert_v1_to_v2([],max+2,timecodes,otc)
+
         elif version == 'v2':
-            if max > len(tclines):
-                temp_max = len(tclines)
+            if max > len(v1):
+                temp_max = len(v1)
                 sample = temp_max//100
                 average = 0
                 for i in range(-sample,0):
-                    average += round(float(tclines[-10])-float(tclines[-11]),6)
-                fps = Fraction.from_float(average / sample / 1000).limit_denominator(60000)
-                if tclines[-1][-1] is not '\n': tclines[-1] += '\n'
+                    average += round(float(v1[i])-float(v1[i-1]),6)
+                fps = correct_to_ntsc(Fraction.from_float(average / sample))
+                ret = convert_v1_to_v2([],max,fps,last=temp_max)
+                if v1[-1][-1] is not '\n': v1[-1] += '\n'
                 for fn in range(temp_max,max):
-                    tclines.append(round(fn*fps,6))
-            timecodes = [round(float(line),6) for line in tclines]
+                    v1 += ['%3.6f\n' % i for i in ret]
+            timecodes = v1
 
     return (timecodes, type), max
 
@@ -449,7 +443,7 @@ def get_ts(fn,tc,scale=0):
         ts = round(10**scale * fn * Fraction(tc.denominator,tc.numerator))
         return ts
     elif tc_type == 'vfr':
-        ts = round(tc[fn]*10**(scale-3))
+        ts = round(float(tc[fn])*10**(scale-3))
         return ts
 
 def convert_fps(fn,old,new):
