@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.1
 
-from sys import exit
+from sys import exit,argv
 from re import compile
 from os.path import isfile, splitext
 from math import floor, ceil
@@ -19,7 +19,7 @@ defaultFps = "30000/1001"
 # Change the paths here if the programs aren't in your $PATH
 mkvmerge = r'mkvmerge'
 
-def main():
+def main(args):
     from optparse import OptionParser
     p = OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
                      version='VFR Chapter Creator 0.7.6',
@@ -40,7 +40,7 @@ def main():
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
     p.add_option('--remove', '-r', action="store_true", help='Remove cut files', dest="remove")
     p.add_option('--test', action="store_true", help="Test mode (do not create new files)", dest="test")
-    (o, a) = p.parse_args()
+    (o, a) = p.parse_args(args)
 
     if len(a) < 1:
         p.error("No avisynth script specified.")
@@ -49,7 +49,7 @@ def main():
 
     #Determine chapter type
     if o.chapters:
-        chre = compile("\.(%s)(?i)" % "|".join(exts.keys()))
+        chre = compile("\.(%s)$(?i)" % "|".join(exts.keys()))
         ret = chre.search(o.chapters)
         chapter_type = exts[ret.group(1).lower()] if ret else "OGM"
     else:
@@ -480,4 +480,4 @@ def generate_chapters(start, end, num, name, type):
         return '{start} {name}\n'.format(**locals())
 
 if __name__ == '__main__':
-    main()
+    main(argv[1:])
