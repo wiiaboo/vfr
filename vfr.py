@@ -44,8 +44,6 @@ def main(args):
 
     if len(a) < 1:
         p.error("No avisynth script specified.")
-    elif isfile(o.fps) and o.ofps:
-        p.error("Can't use --ofps with timecodes file input")
 
     #Determine chapter type
     if o.chapters:
@@ -110,6 +108,8 @@ def main(args):
     
     # Parse timecodes/fps
     tc, max = parse_tc(o.fps, int(Trims[-1][1])+2,o.otc)
+    if tc[1] == 'vfr' and o.ofps:
+        p.error("Can't use --ofps with timecodes file input")
     if o.ofps and o.fps != o.ofps:
         ofps = parse_tc(o.ofps)[0]
         if o.otc:
