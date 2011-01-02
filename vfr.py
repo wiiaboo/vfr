@@ -332,13 +332,13 @@ def correct_to_ntsc(fps,ms=None):
     else:
         return Den/(Num/1000)
 
-def convert_v1_to_v2(v1,max,asm,v2=None,last=0):
+def convert_v1_to_v2(v1,max,asm,v2=None,first=0):
     """Converts a given v1 timecodes file to v2 timecodes.
     
     Ported from tritical's tcConv.
     
     """
-    ts = fn1 = fn2 = 0
+    ts = fn1 = fn2 = last = 0
     asm = correct_to_ntsc(asm,True)
     o=[]
     ap=o.append
@@ -362,10 +362,11 @@ def convert_v1_to_v2(v1,max,asm,v2=None,last=0):
     if v2:
         with open(v2,'wb') as v2f:
             from os import linesep as ls
-            v2f.writelines([en('# timecode format v2'+ls)]+[en(('%3.6f' % s)+ls ) for s in o])
-    return o
+            header = [en('# timecode format v2'+ls)] if first == 0 else [b'']
+            v2f.writelines(header+[en(('%3.6f' % s)+ls ) for s in o[first:]])
+    return o[first:]
 
-def parse_tc(tcfile, max=0, otc=None):
+def parse_tc(tcfile, max=0, otc=None,first=0):
     """Parses a timecodes file or cfr fps.
     
     tcfile = timecodes file or cfr fps to parse
@@ -380,7 +381,7 @@ def parse_tc(tcfile, max=0, otc=None):
         den = Fraction(ret.group(2)) if ret.group(2) else 1
         timecodes = Fraction(num,den)
         if otc:
-            convert_v1_to_v2([],max+2,timecodes,otc)
+            convert_v1_to_v2([],max+2,timecodes,otc,first)
     
     else:
         type = 'vfr'
@@ -393,13 +394,13 @@ def parse_tc(tcfile, max=0, otc=None):
             ret = v1.pop(0).split(' ')
             asm = ret[1] if len(ret) == 2 else exit('there is no assumed fps')
             if v1:
-                ret = convert_v1_to_v2(v1,max,asm,otc)
+                ret = convert_v1_to_v2(v1,max,asm,otc,first)
                 timecodes = ['%3.6f\n' % i for i in ret]
             else:
                 timecodes = correct_to_ntsc(asm)
                 type = 'cfr'
                 if otc:
-                    convert_v1_to_v2([],max+2,timecodes,otc)
+                    convert_v1_to_v2([],max+2,timecodes,otc,first)
 
         elif version == 'v2':
             if max > len(v1):
