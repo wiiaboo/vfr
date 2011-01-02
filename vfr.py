@@ -469,7 +469,7 @@ def generate_chapters(start, end, num, name, type):
 			<ChapterTimeEnd>{end}</ChapterTimeEnd>
 			<ChapterDisplay>
 				<ChapterString>{name}</ChapterString>
-				<ChapterLanguage>"eng"</ChapterLanguage>
+				<ChapterLanguage>eng</ChapterLanguage>
 			</ChapterDisplay>
 		</ChapterAtom>""".format(**locals())
 
