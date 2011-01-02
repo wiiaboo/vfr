@@ -109,7 +109,7 @@ def main():
     Trims2ts = []
     
     # Parse timecodes/fps
-    tc, max = parse_tc(o.fps, int(Trims[-1][1]),o.otc)
+    tc, max = parse_tc(o.fps, int(Trims[-1][1])+2,o.otc)
     if o.ofps and o.fps != o.ofps:
         ofps = parse_tc(o.ofps)[0]
         if o.otc:
@@ -388,7 +388,6 @@ def parse_tc(tcfile, max=0, otc=None):
             v1 = tc.readlines()
         ret = vfr_re.search(v1.pop(0))
         version = ret.group(1) if ret else exit('File is not in a supported format.')
-        max += 2
 
         if version == 'v1':
             ret = v1.pop(0).split(' ')
