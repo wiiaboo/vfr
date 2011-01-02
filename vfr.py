@@ -256,7 +256,7 @@ def main(args):
                 [chapter_names.append(line.strip()) for line in f.readlines()]
                 nc = len(chapter_names)
 
-        if not o.chnames or chapter_names < Trims2ts:
+        if not o.chnames or len(chapter_names) < len(Trims2ts):
             # The if statement is for clarity; it doesn't actually do anything useful
             for i in range(nc,nt2):
                 chapter_names.append("Chapter {:02d}".format(i+1))
