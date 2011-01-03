@@ -160,8 +160,10 @@ def main(args):
 
         # convert fps if --ofps
         if o.ofps and o.fps != o.ofps:
-            fn1 = convert_fps(fn1,tc,ofps)
+            fn1 = convert_fps(fn1,tc,ofps) if fn1 != 0 else 0
             fn2 = convert_fps(fn2,tc,ofps)
+            fn1ts = truncate(get_ts(fn1,ofps))
+            fn2ts = truncate(get_ts(fn2,ofps))
 
         # add trims and their timestamps to list
         Trims2.append([fn1,fn2])
@@ -447,9 +449,9 @@ def convert_fps(fn,old,new):
     """
     oldts=get_ts(fn,old)
     ofps=new[0]
-    new=oldts/10**9/(ofps.denominator/ofps.numerator)
-    new=new if floor(new) == floor(abs(new-0.2)) else new-0.2
-    return int(floor(new))
+    new=oldts/10**9*ofps
+    new=floor(new) if floor(new) == floor(abs(new-0.4)) else floor(new-0.4)
+    return new
 
 def generate_chapters(start, end, num, name, type):
     """Generates chapters
