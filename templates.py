@@ -1,45 +1,68 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.1
 
-import ConfigParser
-import sys
+def main(args):
+    cfg = parse_amkvc(args[1])
 
-def main():
+def parse_amkvc(templatefile):
+    from configparser import ConfigParser
+    from re import compile
+
+    # defaults
+    Defaults = {
+        'editions': '1',
+        'lang': 'eng',
+        'country': 'us',
+        'inputfps': '30',
+        'outputfps': '24',
+        'createqpfile': '1',
+        'ordered': '0',
+        'default': '0',
+        'chapters': '0'
+    }
+    
+    cfg = {}
+    
+    chre = compile('(\d+)(\w+)')
+
     # init config
-    config = ConfigParser.ConfigParser()
-    
-    # read template
-    config.read("%s" % sys.argv[1])
-    
-    # read info section
-    Lang      = config.get('info','lang')
-    Country   = config.get('info','country')
-    QPFile    = config.getboolean('info','createqpfile')
-    InputFPS  = [config.getint('info','inputfps')*1000,1001]
-    OutputFPS = [config.getint('info','outputfps')*1000,1001]
-    nEditions = config.getint('info','editions')
-    Editions  = {}
-    
-    # read edition sections
-    for edition in range(1,nEditions+1):
-        
-        Editions.update({edition:{}})
-        
-        # read edition info
-        edName    = 'edition%d' % edition
-        nChapters = config.getint(edName, 'chapters')
-        default   = config.getboolean(edName, 'default')
-        name      = config.get(edName, 'name')
-        ordered   = config.get(edName,'ordered')
-        
-        # join chapters in a single dict
-        Editions[edition]['chapters'] = {}
-        for i in [{i:{}} for i in range(1,nChapters+1)]:
-            Editions[edition]['chapters'].update(i)
-        for key in config.options(edName):
-            chaps = re.match(r'(\d+)(\w+)',key)
-            if chaps != None:
-                Editions[edition]['chapters'][int(chaps.group(1))].update(dict([[chaps.group(2),config.get(edName,key)]]))
+    config = ConfigParser(Defaults)
 
+    # read template
+    config.read(templatefile)
+
+    # read info section
+    editions         = config.getint('info','editions')
+    cfg['lang']      = config.get('info','lang')
+    cfg['country']   = config.get('info','country')
+    cfg['inputfps']  = [config.getint('info','inputfps')*1000,1001]
+    cfg['outputfps'] = [config.getint('info','outputfps')*1000,1001]
+    cfg['qpfile']    = config.getboolean('info','createqpfile')
+    cfg['editions']  = {}
+
+    # read edition sections
+    for ed_num in range(1,editions+1):
+
+        cfg['editions'][ed_num] = {}
+
+        # read edition info
+        edition  = 'edition%d' % ed_num
+        chapters = config.getint(edition, 'chapters')
+        cfg['editions'][ed_num]['default']  = config.getboolean(edition, 'default')
+        cfg['editions'][ed_num]['name']     = config.get(edition, 'name')
+        cfg['editions'][ed_num]['ordered']  = config.getboolean(edition,'ordered')
+        cfg['editions'][ed_num]['chapters'] = {}
+
+        # join chapters in a single dict
+        for cn in range(1,chapters+1):
+            cfg['editions'][ed_num]['chapters'][cn] = {}
+            
+        for key in config.options(edition)[4:]:
+            chaps = chre.match(key)
+            if chaps:
+                cfg['editions'][ed_num]['chapters'][int(chaps.group(1))][chaps.group(2)] = config.get(edition,key)
+
+    return cfg
 
 if __name__ == '__main__':
-    main()
+    from sys import argv
+    main(argv)
