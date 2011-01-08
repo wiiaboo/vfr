@@ -179,7 +179,7 @@ def main(args):
                 ed = tmp.Edition()
                 ed.default = 1
                 ed.num_chapters = len(chapter_names)
-                ed.uid = o.uid*100 if o.uid else tmp.uid*100
+                ed.uid = int(o.uid)*100 if o.uid else tmp.uid*100
                 cuid = ed.uid
                 ed.chapters = []
                 for i in range(len(chapter_names)):
