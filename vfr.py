@@ -6,7 +6,6 @@ from os.path import isfile, splitext
 from math import floor, ceil
 from fractions import Fraction
 
-trimre = compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
 exts = {
     "xml":"MKV",
     "x264.txt":"X264"
@@ -54,21 +53,6 @@ def main(args):
         ret = splitext(o.input)
         o.output = '%s.cut.mka' % ret[0]
 
-    audio = []
-    Trims = []
-
-    with open(a[0], "r") as avsfile:
-        # use only the first non-commented line with trims
-        avs = avsfile.readlines()
-        findTrims = compile("(?<!#)[^#]*\s*\.?\s*%s\((\d+)\s*,\s*(\d+)\)%s" % (o.label if o.label else "trim","" if o.label else "(?i)"))
-        for line in avs:
-            if findTrims.match(line):
-                Trims = trimre.findall(line)
-                break
-        nt1 = len(Trims)
-        if not Trims:
-            exit("Error: Avisynth script has no uncommented trims")
-
     if o.verbose:
         status =  "Avisynth file:   %s\n" % a[0]
         status += "Label:           %s\n" % o.label if o.label else ""
@@ -85,73 +69,8 @@ def main(args):
 
         print(status)
 
-    # trims' offset calculation
-    Trimsts = []
-    Trims2 = []
-    Trims2ts = []
-    
-    # Parse timecodes/fps
-    tc, max = parse_tc(o.fps, int(Trims[-1][1])+2,o.otc)
-    if tc[1] == 'vfr' and o.ofps:
-        p.error("Can't use --ofps with timecodes file input")
-    if o.ofps and o.fps != o.ofps:
-        ofps = parse_tc(o.ofps)[0]
-        if o.otc:
-            max = convert_fps(int(Trims[-1][1]),tc,ofps)
-            parse_tc(o.ofps,max+2,o.otc)
-
-    for i in range(nt1):
-        fn1 = int(Trims[i][0])
-        fn1ts = truncate(get_ts(fn1,tc))
-        fn1tsaud = get_ts(fn1,tc)
-        fn2 = int(Trims[i][1])
-        fn2ts = truncate(get_ts(fn2,tc))
-        fn2tsaud = get_ts(fn2+1,tc)
-        adjacent = False
-        Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
-
-        # calculate offsets for non-continuous trims
-        if i == 0:
-            offset = 0
-            offsetts = 0
-            if fn1 > 0:
-                # if the first trim doesn't start at 0
-                offset = fn1
-                offsetts = fn1ts
-        else:
-            # if it's not the first trim
-            last = int(Trims[i-1][1])
-            lastts = truncate(get_ts(last+1,tc))
-            adjacent = True if not fn1-(last+1) else False
-            offset += fn1-(last+1)
-            offsetts += 0 if adjacent else fn1ts-lastts           
-
-        if o.input:
-            # make list with timecodes to cut audio
-            if adjacent:
-                del audio[-1]
-            elif fn1 <= max:
-                audio.append(fmt_time(fn1tsaud))
-
-            if fn2 <= max:
-                audio.append(fmt_time(fn2tsaud))
-
-        # apply the offset to the trims
-        fn1 -= offset
-        fn2 -= offset
-        fn1ts -= offsetts
-        fn2ts -= offsetts
-
-        # convert fps if --ofps
-        if o.ofps and o.fps != o.ofps:
-            fn1 = convert_fps(fn1,tc,ofps) if fn1 != 0 else 0
-            fn2 = convert_fps(fn2,tc,ofps)
-            fn1ts = truncate(get_ts(fn1,ofps))
-            fn2ts = truncate(get_ts(fn2,ofps))
-
-        # add trims and their timestamps to list
-        Trims2.append([fn1,fn2])
-        Trims2ts.append([fn1ts,fn2ts])
+    # Get frame numbers and corresponding timecodes from avs
+    Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps, o.otc, o.input, o.label)
 
     nt2 = len(Trims2ts)
     if o.verbose:
@@ -469,6 +388,120 @@ def generate_chapters(start, end, num, name, type):
 
     elif type == 'X264':
         return '{start} {name}\n'.format(**locals())
+
+def parse_avs(avs, label=None):
+    """Parse an avisynth file. Scours it for the first uncommented trim line.
+    
+    By default it looks for case-insensitive 'trim'. Using label, you can make it
+    parse only the line starting with a certain case of trim, ignoring the others.
+    Ex: label = 'tRiM' looks for the line starting with tRiM, ignoring other cases.
+    
+    Returns list with pairs of frames containing the first and last of each trim.
+    
+    """
+
+    trimre = compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
+    Trims = []
+
+    with open(avs) as avsfile:
+        avs = avsfile.readlines()
+        findTrims = compile("(?<!#)[^#]*\s*\.?\s*%s\((\d+)\s*,\s*(\d+)\)%s" % (label if label else "trim","" if label else "(?i)"))
+        for line in avs:
+            if findTrims.match(line):
+                Trims = trimre.findall(line)
+                break
+        if not Trims:
+            exit("Error: Avisynth script has no uncommented trims")
+
+    return Trims
+
+def parse_trims(avs, fps, ofps=None, otc=None, input=None, label=None):
+    """Parse trims from an avisynth file.
+
+    Returns 5 lists containing:
+    Trims = Trims as parsed from the avs without processing.
+    Trimsts = Timecodes of each trim in Trims.
+    Trims2 = Offset trims. If ofps is set, they will be using ofps's frame numbers.
+    Trims2ts = Same as Trimsts only for Trims2.
+    audio = Timecodes where each cut will be performed for audio.
+            If the cuts are for adjacent frames they won't be appended to the list,
+            so as to avoid unnecessary cuts.
+            Ex: trim(0,10)+trim(11,20) will be output as trim(0,20)
+
+    """
+
+    Trims = parse_avs(avs, label)
+    audio = []
+    Trimsts = []
+    Trims2 = []
+    Trims2ts = []
+    nt1 = len(Trims)
+
+    # Parse timecodes/fps
+    tc, max = parse_tc(fps, int(Trims[-1][1])+2,otc)
+    if tc[1] == 'vfr' and ofps:
+        exit("Can't use --ofps with timecodes file input")
+    if ofps and fps != ofps:
+        ofps = parse_tc(ofps)[0]
+        if otc:
+            max = convert_fps(int(Trims[-1][1]),tc,ofps)
+            parse_tc(ofps,max+2,otc)
+
+    # Parse trims
+    for i in range(nt1):
+        fn1 = int(Trims[i][0])
+        fn1ts = truncate(get_ts(fn1,tc))
+        fn1tsaud = get_ts(fn1,tc)
+        fn2 = int(Trims[i][1])
+        fn2ts = truncate(get_ts(fn2,tc))
+        fn2tsaud = get_ts(fn2+1,tc)
+        adjacent = False
+        Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
+
+        # Calculate offsets for non-continuous trims
+        if i == 0:
+            offset = 0
+            offsetts = 0
+            # If the first trim doesn't start at 0
+            if fn1 > 0:
+                offset = fn1
+                offsetts = fn1ts
+        else:
+            # If it's not the first trim
+            last = int(Trims[i-1][1])
+            lastts = truncate(get_ts(last+1,tc))
+            adjacent = True if not fn1-(last+1) else False
+            offset += fn1-(last+1)
+            offsetts += 0 if adjacent else fn1ts-lastts           
+
+        if input:
+            # Make list with timecodes to cut audio
+            if adjacent:
+                del audio[-1]
+            elif fn1 <= max:
+                audio.append(fmt_time(fn1tsaud))
+
+            if fn2 <= max:
+                audio.append(fmt_time(fn2tsaud))
+
+        # Apply the offset to the trims
+        fn1 -= offset
+        fn2 -= offset
+        fn1ts -= offsetts
+        fn2ts -= offsetts
+
+        # Convert fps if ofps is supplied
+        if ofps and fps != ofps:
+            fn1 = convert_fps(fn1,tc,ofps) if fn1 != 0 else 0
+            fn2 = convert_fps(fn2,tc,ofps)
+            fn1ts = truncate(get_ts(fn1,ofps))
+            fn2ts = truncate(get_ts(fn2,ofps))
+
+        # Add trims and their timestamps to list
+        Trims2.append([fn1,fn2])
+        Trims2ts.append((fn1ts,fn2ts))
+
+    return Trims, Trimsts, Trims2, Trims2ts, audio
 
 def write_qpfile(qpfile,trims):
     """Simply writes keyframes for use in x264 from a list of Trims."""
