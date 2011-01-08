@@ -6,7 +6,6 @@ from os.path import isfile, splitext
 from math import floor, ceil
 from fractions import Fraction
 
-fpsre = compile("(?<!#)AssumeFPS\((\d+)\s*,\s*(\d+)\)(?i)")
 trimre = compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
 exts = {
     "xml":"MKV",
@@ -69,15 +68,6 @@ def main(args):
         nt1 = len(Trims)
         if not Trims:
             exit("Error: Avisynth script has no uncommented trims")
-
-        # Look for AssumeFPS
-        if not o.fps:
-            for line in avs:
-                if fpsre.search(line):
-                    o.fps = '/'.join([i for i in fpsre.search(line).groups()])
-                    if o.verbose:
-                        print("\nFound AssumeFPS, setting CFR (%s)" % o.fps)
-                    break
 
     if o.verbose:
         status =  "Avisynth file:   %s\n" % a[0]
