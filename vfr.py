@@ -6,15 +6,13 @@ from os.path import isfile, splitext
 from math import floor, ceil
 from fractions import Fraction
 
-cfr_re = compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
-vfr_re = compile('# timecode format (v1|v2)')
 fpsre = compile("(?<!#)AssumeFPS\((\d+)\s*,\s*(\d+)\)(?i)")
 trimre = compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
 exts = {
     "xml":"MKV",
     "x264.txt":"X264"
 }
-defaultFps = "30000/1001"
+default_fps = "30000/1001"
 
 # Change the paths here if the programs aren't in your $PATH
 mkvmerge = r'mkvmerge'
@@ -24,10 +22,8 @@ def main(args):
     p = OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
                      version='VFR Chapter Creator 0.7.6',
                      usage='%prog [options] infile.avs [outfile.avs]')
-    p.add_option('--label', '-l',
-                 action="store",
-                 help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim",
-                 dest="label")
+    p.add_option('--label', '-l',action="store",dest="label",
+                 help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut', dest="input")
     p.add_option('--output', '-o', action="store", help='Cut audio from MKVMerge', dest="output")
     p.add_option('--fps', '-f', action="store", help='Frames per second or Timecodes file', dest="fps")
@@ -44,6 +40,8 @@ def main(args):
 
     if len(a) < 1:
         p.error("No avisynth script specified.")
+    elif not o.fps:
+        o.fps = default_fps
 
     #Determine chapter type
     if o.chapters:
@@ -57,7 +55,6 @@ def main(args):
         ret = splitext(o.input)
         o.output = '%s.cut.mka' % ret[0]
 
-    quiet = '' if o.verbose else '-q'
     audio = []
     Trims = []
 
@@ -82,8 +79,6 @@ def main(args):
                         print("\nFound AssumeFPS, setting CFR (%s)" % o.fps)
                     break
 
-    o.fps = defaultFps if not o.fps else o.fps
-
     if o.verbose:
         status =  "Avisynth file:   %s\n" % a[0]
         status += "Label:           %s\n" % o.label if o.label else ""
@@ -99,7 +94,6 @@ def main(args):
         status += "Test Mode:       %s\n" % o.test if o.test else ""
 
         print(status)
-        print('In trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
 
     # trims' offset calculation
     Trimsts = []
@@ -170,9 +164,11 @@ def main(args):
         Trims2ts.append([fn1ts,fn2ts])
 
     nt2 = len(Trims2ts)
-    if o.verbose: print('In timecodes: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trimsts]))
-    if o.verbose: print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
-    if o.verbose: print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1])) for i in range(nt2)]))
+    if o.verbose:
+        print('In trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
+        print('In timecodes: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trimsts]))
+        print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
+        print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]))
 
     # make qpfile
     if o.qpfile:
@@ -194,6 +190,7 @@ def main(args):
         else:
             includefirst = False
         cuttimes = ','.join(audio)
+        quiet = '' if o.verbose else '-q'
         cutCmd = '"%s" -o "%s" --sync 0:%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, o.input, cuttimes, quiet)
         if o.verbose: print('Cutting: %s\n' % cutCmd)
         if not o.test:
@@ -251,33 +248,33 @@ def main(args):
 
         # Assign names to each chapter if --chnames
         chapter_names = []
-        nc = 0
 
         if o.chnames:
             with open(o.chnames, "r", encoding='utf_8') as f:
                 [chapter_names.append(line.strip()) for line in f.readlines()]
-                nc = len(chapter_names)
 
         if not o.chnames or len(chapter_names) < len(Trims2ts):
             # The if statement is for clarity; it doesn't actually do anything useful
-            for i in range(nc,nt2):
+            for i in range(len(chapter_names),len(Trims2ts)):
                 chapter_names.append("Chapter {:02d}".format(i+1))
 
         if not o.test:
-            with open(o.chapters, "w",encoding='utf_8') as output:
+            with open(o.chapters, "w",encoding='utf-8') as output:
                 if chapter_type == 'MKV':
+                    Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
                     output.write(matroskaXmlHeader)
                     output.write(matroskaXmlEditionHeader)
-                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0]), fmt_time(Trims2ts[i][1]),i+1,chapter_names[i],chapter_type)) for i in range(nt2)]
+                    [output.write(generate_chapters(Trims2ts[i][0], Trims2ts[i][1],i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
                     output.write(matroskaXmlEditionFooter)
                     output.write(matroskaXmlFooter)
                 else:
-                    [output.write(generate_chapters(fmt_time(Trims2ts[i][0],1), fmt_time(Trims2ts[i][1],1),i+1,chapter_names[i],chapter_type)) for i in range(nt2)]
+                    Trims2ts = [(fmt_time(i[0],1),fmt_time(i[1],1)) for i in Trims2ts]
+                    [output.write(generate_chapters(Trims2ts[i][0], Trims2ts[i][1],i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
         if o.verbose:
             print("Writing {} Chapters to {}".format(chapter_type,o.chapters))
 
 def fmt_time(ts,msp=None):
-    """Converts timestamps to timecodes.
+    """Converts nanosecond timestamps to timecodes.
     
     msp = Set timecodes for millisecond precision if True
     
@@ -337,7 +334,7 @@ def correct_to_ntsc(fps,ms=None):
 def convert_v1_to_v2(v1,max,asm,v2=None,first=0):
     """Converts a given v1 timecodes file to v2 timecodes.
     
-    Ported from tritical's tcConv.
+    Original idea from tritical's tcConv.
     
     """
     ts = fn1 = fn2 = last = 0
@@ -376,6 +373,10 @@ def parse_tc(tcfile, max=0, otc=None,first=0):
     otc = output v2 timecodes filename
     
     """
+
+    cfr_re = compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
+    vfr_re = compile('# timecode format (v1|v2)')
+
     ret = cfr_re.search(tcfile)
     if ret and not isfile(tcfile):
         type = 'cfr'
