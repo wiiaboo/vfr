@@ -149,8 +149,9 @@ def main(args):
 
     # write chapters
     if chapter_type:
-
-        Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
+        
+        if chapter_type == 'MKV':
+            Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
 
         if o.template:
             from templates import AutoMKVChapters as amkvc
