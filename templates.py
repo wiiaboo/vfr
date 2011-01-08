@@ -1,157 +1,257 @@
 #!/usr/bin/env python3.1
 
-class Info:
-    editions = 1
-    lang = 'eng'
-    country = 'us'
-    inputfps = [30000,1001]
-    outputfps = [24000,1001]
-    createqpfile = False
+class AutoMKVChapters:
 
-class Edition:
-    default = False
-    name = 'Edition'
-    hidden = False
-    ordered = False
-    chapters = {}
+    class Edition:
+        def __init__(self):
+            self.default = 0
+            self.name = 'Edition'
+            self.hidden = 0
+            self.ordered = 0
+            self.num_chapters = 1
+            self.uid = 0
 
-class Chapter:
-    name = 'Chapter'
-    chapter = None
-    start = None
-    end = None
-    suid = None
-    hidden = False
+    class Chapter:
+        def __init__(self):
+            self.name = 'Chapter'
+            self.chapter = False
+            self.start = False
+            self.end = False
+            self.suid = False
+            self.hidden = 0
+            self.uid = 0
+            self.enabled = 1
+
+    def __init__(self, templatefile, avs=None):
+        from random import randint
+        import configparser
+        
+        # Init config
+        config = configparser.ConfigParser()
+        template = open(templatefile,encoding='utf-8')
+
+        # Read template
+        config.readfp(template)
+        
+        # Template defaults
+        self.uid = randint(10**4,10**6)
+        self.num_editions = 1
+        self.lang = ['eng']
+        self.country = ['us']
+        self.fps = '30'
+        self.ofps = '24'
+        self.qpf = '0'
+        self.editions = []
+
+        for k, v in config.items('info'):
+            if k == 'lang':
+                self.lang = v.split(',')
+            elif k == 'country':
+                self.country = v.split(',')
+            elif k == 'inputfps':
+                self.fps = v
+            elif k == 'outputfps':
+                self.ofps = v
+            elif k == 'createqpfile':
+                self.qpf = v
+            elif k == 'uid':
+                self.uid = int(v)
+            elif k == 'editions':
+                self.num_editions = int(v)
+
+        if avs:
+            self.connect_with_vfr(avs)
+        else:
+            self.trims = False
+
+        for i in range(self.num_editions):
+            ed = self.Edition()
+            self.uid += 1
+            ed.uid = self.uid * 100
+            cuid = ed.uid
+            ed.num = i+1
+            ed.chapters = []
+            stuff = {}
+            
+            for k, v in config.items('edition%d' % ed.num):
+                if k == 'default':
+                    ed.default = int(v)
+                elif k == 'name':
+                    ed.name = v.split(',')
+                elif k == 'ordered':
+                    ed.ordered = int(v)
+                elif k == 'hidden':
+                    ed.hidden = int(v)
+                elif k == 'chapters':
+                    ed.num_chapters = int(v)
+                    for i in range(ed.num_chapters):
+                        stuff[i+1] = []
+                elif k == 'uid':
+                    ed.uid = int(v)
+                else:
+                    stuff[int(k[0])].append((k[1:],v))
+
+            for j in range(ed.num_chapters):
+                ch = self.Chapter()
+                cuid += 1
+                ch.uid = cuid
+                ch.num = j+1
+                
+                for k, v in stuff[j+1]:
+                    if k == 'name':
+                        ch.name = v.split(',')
+                    elif k == 'chapter':
+                        ch.chapter = int(v)
+                    elif k == 'start':
+                        ch.start = v
+                    elif k == 'end':
+                        ch.end = v
+                    elif k == 'suid':
+                        ch.suid = v
+                    elif k == 'hidden':
+                        ch.hidden = int(v)
+                    elif k == 'enabled':
+                        ch.enabled = int(v)
+
+                if ch.chapter and not (ch.start and ch.end):
+                    ch.start, ch.end = self.trims[ch.chapter-1] if self.trims else (ch.start, ch.end)
+                elif ch.suid and not ch.end:
+                    from subprocess import check_output
+                    from re import compile
+                    suid_re = compile('^\| \+ Segment UID: (.*)(?m)')
+                    duration_re = compile('^\| \+ Duration: \d+\.\d*s \((\d+:\d+:\d+.\d+)\)(?m)')
+                    suid = None
+                    if isfile(ch.suid):
+                        info = check_output(['mkvinfo','--output-charset','utf-8',ch.suid]).decode('utf-8')
+                        ret = suid_re.search(info)
+                        suid = ret.group(1).strip().replace('0x','').replace(' ','') if ret else 0
+                    else:
+                        from glob import glob
+                        mkvfiles = glob('*.mkv')
+                        for file in mkvfiles:
+                            info = check_output(['mkvinfo','--output-charset','utf-8',file]).decode('utf-8')
+                            ret = suid_re.search(info)
+                            suid = ret.group(1).strip().replace('0x','').replace(' ','') if ret else 0
+                            if suid == ch.suid.strip().replace('0x','').replace(' ',''):
+                                break
+                    if suid:
+                        ret = duration_re.search(info)
+                        if ret:
+                            ch.suid = suid
+                            ch.start = '00:00:00.000'
+                            ch.end = ret.group(1)
+                    else:
+                        ch.suid = False
+                        ch.start = '00:00:00.000'
+                        ch.end = '00:00:00.000'
+                        ch.enabled = 0
+                        
+                ed.chapters.append(ch)
+            self.editions.append(ed)
+
+    def connect_with_vfr(self,avs):
+        """
+        Connects templates.py with vfr.py, enabling its use outside of vfr.py.
+        
+        Uses the same quirks as AMkvC but only for 24 and 30 fps.
+        Ex: inputfps=30 is understood as being '30*1000/1001'
+        
+        """
+
+        # compensate for amkvc's fps assumption
+        if self.fps in ('24','30'):
+            fps = '%s/1.001' % self.fps
+        else:
+            self.fps = str(fps)
+        if self.ofps and self.ofps in ('24','30'):
+            ofps = '%s/1.001' % self.ofps
+        else:
+            ofps = str(self.ofps)
+        Trims2, Trims2ts = parse_trims(avs, fps, ofps)[2:4]
+        Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
+
+        self.trims = Trims2ts
+        self.kframes = Trims2
+
+
+    def toxml(self,chapfile):
+
+        chf = open(chapfile+'.xml','w',encoding='utf-8')
+        head = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n'
+        chf.write(head+'<Chapters>\n')
+        
+        if self.num_editions > 1:
+            tagf = open(chapfile+'tags.xml','w')
+            tagf.write(head+'<Tags>\n')
+        else:
+            tagf = False
+
+        for ed in self.editions:
+            chf.write('\t<EditionEntry>\n')
+            chf.write('\t\t<EditionFlagHidden>%d</EditionFlagHidden>\n' % ed.hidden)
+            chf.write('\t\t<EditionFlagDefault>%d</EditionFlagDefault>\n' % ed.default)
+            chf.write('\t\t<EditionFlagOrdered>%d</EditionFlagOrdered>\n' % ed.ordered)
+            chf.write('\t\t<EditionUID>%d</EditionUID>\n' % ed.uid)
+            
+            if tagf:
+                tagf.write('\t<Tag>\n\t\t<Targets>\n')
+                tagf.write('\t\t\t<EditionUID>%d</EditionUID>\n' % ed.uid)
+                tagf.write('\t\t\t<TargetTypeValue>50</TargetTypeValue>\n\t\t</Targets>\n')
+                num_names = len(ed.name) if len(ed.name) < len(self.lang) else len(self.lang)
+                for i in range(num_names):
+                    tagf.write('\t\t<Simple>\n\t\t\t<Name>TITLE</Name>\n')
+                    tagf.write('\t\t\t<String>%s</String>\n' % (ed.name[i] if ed.name[i] != '' else ed.name[i-1]))
+                    tagf.write('\t\t\t<TagLanguage>%s</TagLanguage>\n' % self.lang[i])
+                    tagf.write('\t\t\t<DefaultLanguage>%d</DefaultLanguage>\n' % (1 if i == 0 else 0))
+                    tagf.write('\t\t</Simple>\n')
+                tagf.write('\t</Tag>\n')
+
+            for ch in ed.chapters:
+                chf.write('\t\t<ChapterAtom>\n')
+                num_names = len(ch.name) if len(ch.name) < len(self.lang) else len(self.lang)
+                for i in range(num_names):
+                    chf.write('\t\t\t<ChapterDisplay>\n')
+                    chf.write('\t\t\t\t<ChapterString>%s</ChapterString>\n' % (ch.name[i] if ch.name[i] != '' else ch.name[i-1]))
+                    chf.write('\t\t\t\t<ChapterLanguage>%s</ChapterLanguage>\n' % self.lang[i])
+                    chf.write('\t\t\t\t<ChapterCountry>%s</ChapterCountry>\n' % self.country[i] if i < len(self.country) else '')
+                    chf.write('\t\t\t</ChapterDisplay>\n')
+                chf.write('\t\t\t<ChapterUID>%d</ChapterUID>\n' % ch.uid)
+                chf.write('\t\t\t<ChapterTimeStart>%s</ChapterTimeStart>\n' % ch.start)
+                chf.write('\t\t\t<ChapterTimeEnd>%s</ChapterTimeEnd>\n' % ch.end)
+                chf.write('\t\t\t<ChapterFlagHidden>%d</ChapterFlagHidden>\n' % ch.hidden if ch.hidden != 0 else '')
+                chf.write('\t\t\t<ChapterFlagEnabled>%d</ChapterFlagEnabled>\n' % ch.enabled if ch.enabled != 1 else '')
+                chf.write('\t\t\t<ChapterSegmentUID format="hex">%s</ChapterSegmentUID>\n' % ch.suid if ch.suid else '')
+                chf.write('\t\t</ChapterAtom>\n')
+            
+            chf.write('\t</EditionEntry>\n')
+
+        chf.write('</Chapters>\n')
+
+        if tagf:
+            tagf.write('</Tags>\n')
+            tagf.close()
+
+        if self.qpf != '0' and self.kframes:
+            if self.qpf != '1':
+                qpfile = self.qpf
+            else:
+                qpfile = chapfile+'.qpfile'
+            write_qpfile(qpfile,self.kframes)
 
 def main(args):
-    cfg, type = parse_amkvc(args[1])
-    format_chapters(cfg, type)
 
+    template = args[0]
+    output = args[1]
+    avs = args[2] if len(args) == 3 else None
 
-def format_chapters(cfg,type):
-    from random import randint
-    from os import linesep as lsp
-
-    uid = randint(10**5,10**6)
-
-    mkv = ['<?xml version="1.0" encoding="UTF-8"?>\n',
-           '<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n']
-    mkvchapters = mkv + ['<Chapters>\n']
-    mkvtags = mkv + ['<Tags>\n']
-    
-    for edition_num in cfg['editions']:
-        uid += 1
-        edition = cfg['editions'][edition_num]
-        mkvedition = ['\t<EditionEntry>\n',
-                      '\t\t<EditionFlagHidden>0</EditionFlagHidden>\n',
-                      '\t\t<EditionFlagDefault>%d</EditionFlagDefault>\n' % int(edition['default']),
-                      '\t\t<EditionFlagOrdered>%d</EditionFlagOrdered>\n' % int(edition['ordered']),
-                      '\t\t<EditionUID>%d</EditionUID>\n' % uid]
-        
-        mkvtags += ['\t<Tag>\n',
-                    '\t\t<Targets>\n',
-                    '\t\t\t<EditionUID>%d</EditionUID>\n' % uid,
-                    '\t\t\t<TargetTypeValue>50</TargetTypeValue>\n',
-                    '\t\t</Targets>\n',
-                    '\t\t<Simple>\n',
-                    '\t\t\t<Name>TITLE</Name>\n',
-                    '\t\t\t<String>%s</String>\n' % edition['name'],
-                    '\t\t\t<TagLanguage>%s</TagLanguage>\n' % cfg['lang'],
-                    '\t\t\t<DefaultLanguage>1</DefaultLanguage>\n',
-                    '\t\t</Simple>\n',
-                    '\t</Tag>\n']
-
-        for chapter_num in edition['chapters']:
-            uid += 1
-            chapter = edition['chapters'][chapter_num]
-            mkvchapter = ['\t\t<ChapterAtom>\n',
-                          '\t\t\t<ChapterDisplay>\n',
-                          '\t\t\t\t<ChapterString>%s</ChapterString>\n' % chapter['name'],
-                          '\t\t\t\t<ChapterLanguage>%s</ChapterLanguage>\n' % cfg['lang'],
-                          '\t\t\t\t<ChapterCountry>%s</ChapterCountry>\n' % cfg['country'],
-                          '\t\t\t</ChapterDisplay>\n',
-                          '\t\t\t<ChapterUID>%d</ChapterUID>\n' % uid,
-                          '\t\t\t<ChapterTimeStart>0</ChapterTimeStart>\n',
-                          '\t\t\t<ChapterTimeEnd>0</ChapterTimeEnd>\n',
-                          '\t\t\t<ChapterFlagHidden>0</ChapterFlagHidden>\n',# % chapter['hidden'],
-                          '\t\t\t<ChapterFlagEnabled>1</ChapterFlagEnabled>\n',
-                          '\t\t</ChapterAtom>\n']
-            mkvedition += mkvchapter
-            
-        mkvedition += ['\t</EditionEntry>\n']
-        mkvchapters += mkvedition
-        
-    mkvchapters += ['</Chapters>\n']
-    
-    outf = open('pilas.xml','w')
-    outf.writelines(mkvchapters)
-    
-    outf2 = open('pilatags.xml','w')
-    outf2.writelines(mkvtags)
-
-
-def parse_amkvc(templatefile):
-    from configparser import ConfigParser
-    from re import compile
-
-    # defaults
-    Defaults = {
-        'editions': '1',
-        'lang': 'eng',
-        'country': 'us',
-        'inputfps': '30',
-        'outputfps': '24',
-        'createqpfile': '1',
-        'hidden': '0',
-        'ordered': '0',
-        'default': '0',
-        'chapters': '0'
-    }
-
-    cfg = {}
-    
-    chre = compile('(\d+)(\w+)')
-
-    # init config
-    config = ConfigParser(Defaults)
-
-    # read template
-    config.read(templatefile)
-
-    # read info section
-    editions         = config.getint('info','editions')
-    cfg['lang']      = config.get('info','lang')
-    cfg['country']   = config.get('info','country')
-    cfg['inputfps']  = [config.getint('info','inputfps')*1000,1001]
-    cfg['outputfps'] = [config.getint('info','outputfps')*1000,1001]
-    cfg['qpfile']    = config.getboolean('info','createqpfile')
-    cfg['editions']  = {}
-
-    # read edition sections
-    for ed_num in range(1,editions+1):
-
-        cfg['editions'][ed_num] = {}
-
-        # read edition info
-        edition  = 'edition%d' % ed_num
-        chapters = config.getint(edition, 'chapters')
-        cfg['editions'][ed_num]['default']  = config.getboolean(edition, 'default')
-        cfg['editions'][ed_num]['name']     = config.get(edition, 'name')
-        cfg['editions'][ed_num]['ordered']  = config.getboolean(edition,'ordered')
-        cfg['editions'][ed_num]['chapters'] = {}
-
-        # join chapters in a single dict
-        for cn in range(1,chapters+1):
-            cfg['editions'][ed_num]['chapters'][cn] = {}
-            
-        for key in config.options(edition)[4:]:
-            chaps = chre.match(key)
-            if chaps:
-                cfg['editions'][ed_num]['chapters'][int(chaps.group(1))][chaps.group(2)] = config.get(edition,key)
-
-    return cfg, 'MKV'
-
+    chaps = AutoMKVChapters(template,avs)
+    chaps.toxml(output)
 
 if __name__ == '__main__':
-    from sys import argv
-    main(argv)
+    from sys import argv, exit
+    from vfr import parse_trims, fmt_time, write_qpfile
+    from os.path import isfile
+    if len(argv) > 1:
+        main(argv[1:])
+    else:
+        exit("templates.py <template file> <output filenames w/o extension> [<avisynth file>]")
