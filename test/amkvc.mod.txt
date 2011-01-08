@@ -23,13 +23,13 @@ name=Default
 default=1
 ordered=0
 chapters=6
-# will add one and multiply by 100 from [info] uid if not overrided
-uid=12345700
+# multiply by 100 from [info] uid if not overrided
+uid=12345600
 # chapter names can now be non-ascii
 1name=Intro,Introdução
 1chapter=1
 # add one from edition uid if not overrided
-1uid=12345701
+1uid=12345601
 # langs can be skipped. Translation for "por" will be "Opening". شارة will use "und".
 2name=Opening,,شارة
 2chapter=2
@@ -38,7 +38,7 @@ uid=12345700
 # if Xend is omitted and Xsuid is a filename, mkvinfo will be used to get the total duration of the file
 # if Xend is omitted and Xsuid is a normal SUID, all the .mkv in the current working dir will be
 #   mkvinfo'd until the SUID is found, when finally Xend will be taken from total duration, as above
-3suid=..\sample.mkv
+3suid=./sample.mkv
 3enabled=0
 4name=Part 2,2ª Parte
 4chapter=4
@@ -52,6 +52,8 @@ name=No OP/ED,Sem OP/ED
 default=0
 ordered=1
 chapters=4
+# add one to [info]'s uid if more than one edition and multiply by 100
+uid=12345700
 # if you set more translations here than langs on [info], only the ones corresponding to langs are used
 # in this example, only Intro and Introdução are used
 1name=Intro,Introdução,Вступление

@@ -29,6 +29,8 @@ def main(args):
     p.add_option('--timecodes', action="store", help='Output v2 timecodes', dest="otc")
     p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
     p.add_option('--chnames', '-n', action="store", help='Path to template file for chapter names (utf8 w/o bom)', dest="chnames")
+    p.add_option('--template', '-t', action="store", help="Template file for chapters", dest="template")
+    p.add_option('--uid', action="store", help="Base UID for --template or --chnames", dest="uid")
     p.add_option('--qpfile', '-q', action="store", help='QPFile for x264', dest="qpfile")
     p.add_option('--verbose', '-v', action="store_true", help='Verbose', dest="verbose")
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
@@ -38,7 +40,7 @@ def main(args):
 
     if len(a) < 1:
         p.error("No avisynth script specified.")
-    elif not o.fps:
+    if not o.fps:
         o.fps = default_fps
 
     #Determine chapter type
@@ -48,6 +50,11 @@ def main(args):
         chapter_type = exts[ret.group(1).lower()] if ret else "OGM"
     else:
         chapter_type = ''
+
+    if o.template and o.chnames:
+        p.error("Choose either --chnames or --template, not both.")
+    elif o.template and chapter_type != 'MKV':
+        p.error("--template needs to output to .xml.")
 
     if not o.output and o.input:
         ret = splitext(o.input)
@@ -61,6 +68,8 @@ def main(args):
         status += "Timecodes/FPS:   %s%s\n" % (o.fps," to "+o.ofps if o.ofps else "") if o.ofps != o.fps else ""
         status += "Output v2 Tc:    %s\n" % o.otc if o.otc else ""
         status += "Chapters file:   %s%s\n" % (o.chapters," (%s)" % chapter_type if chapter_type else "") if o.chapters else ""
+        status += "Chapter Names:   %s\n" % o.chnames if o.chnames else ""
+        status += "Template file:   %s\n" % o.template if o.template else ""
         status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
         status += "\n"
         status += "Merge/Rem files: %s/%s\n" % (o.merge,o.remove) if o.merge or o.remove else ""
@@ -80,7 +89,7 @@ def main(args):
         print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]))
 
     # make qpfile
-    if o.qpfile:
+    if o.qpfile and not o.template:
         if not o.test:
             write_qpfile(o.qpfile,Trims2)
         if o.verbose: print('Writing keyframes to %s\n' % o.qpfile)
@@ -140,43 +149,59 @@ def main(args):
 
     # write chapters
     if chapter_type:
-        from random import randint
-        if chapter_type == 'MKV':
-            EditionUID = randint(10**5,10**6)
-            matroskaXmlHeader = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n<Chapters>'
-            matroskaXmlEditionHeader = """
-	<EditionEntry>
-		<EditionFlagHidden>{}</EditionFlagHidden>
-		<EditionFlagDefault>{}</EditionFlagDefault>
-		<EditionFlagOrdered>{}</EditionFlagOrdered>
-		<EditionUID>{}</EditionUID>""".format(0,1,0,EditionUID)
-            matroskaXmlEditionFooter = '\n	</EditionEntry>'
-            matroskaXmlFooter = '\n</Chapters>'
 
-        # Assign names to each chapter if --chnames
-        chapter_names = []
+        Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
 
-        if o.chnames:
-            with open(o.chnames, "r", encoding='utf_8') as f:
-                [chapter_names.append(line.strip()) for line in f.readlines()]
+        if o.template:
+            from templates import AutoMKVChapters as amkvc
+            output = o.chapters[:-4] if not o.test else None
+            chaps = amkvc(o.template,output=output,trims=Trims2ts,kframes=Trims2,uid=o.uid)
+            
 
-        if not o.chnames or len(chapter_names) < len(Trims2ts):
-            # The if statement is for clarity; it doesn't actually do anything useful
-            for i in range(len(chapter_names),len(Trims2ts)):
-                chapter_names.append("Chapter {:02d}".format(i+1))
+        else:
+            # Assign names to each chapter if --chnames
+            chapter_names = []
 
-        if not o.test:
-            with open(o.chapters, "w",encoding='utf-8') as output:
+            if o.chnames:
+                with open(o.chnames, encoding='utf-8') as f:
+                    [chapter_names.append(line.strip()) for line in f.readlines()]
+
+            if not o.chnames or len(chapter_names) < len(Trims2ts):
+                # The if statement is for clarity; it doesn't actually do anything useful
+                for i in range(len(chapter_names),len(Trims2ts)):
+                    chapter_names.append("Chapter {:02d}".format(i+1))
+
+            if chapter_type == 'MKV':
+                from templates import AutoMKVChapters as amkvc
+                tmp = amkvc.Template()
+                tmp.trims = Trims2ts
+                ed = tmp.Edition()
+                ed.default = 1
+                ed.num_chapters = len(chapter_names)
+                ed.uid = o.uid*100 if o.uid else tmp.uid*100
+                cuid = ed.uid
+                ed.chapters = []
+                for i in range(len(chapter_names)):
+                    ch = tmp.Chapter()
+                    cuid += 1
+                    ch.uid = cuid
+                    ch.name = [chapter_names[i]]
+                    ch.start, ch.end = (Trims2ts[i][0],Trims2ts[i][1])
+                    ed.chapters.append(ch)
+                tmp.editions = [ed]
+                chaps = tmp
+
+            if not o.test:
                 if chapter_type == 'MKV':
-                    Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
-                    output.write(matroskaXmlHeader)
-                    output.write(matroskaXmlEditionHeader)
-                    [output.write(generate_chapters(Trims2ts[i][0], Trims2ts[i][1],i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
-                    output.write(matroskaXmlEditionFooter)
-                    output.write(matroskaXmlFooter)
+                    chaps.toxml(o.chapters[:-4])
                 else:
-                    Trims2ts = [(fmt_time(i[0],1),fmt_time(i[1],1)) for i in Trims2ts]
-                    [output.write(generate_chapters(Trims2ts[i][0], Trims2ts[i][1],i+1,chapter_names[i],chapter_type)) for i in range(len(Trims2ts))]
+                    with open(o.chapters, "w",encoding='utf-8') as output:
+                        if chapter_type == 'OGM':
+                            chap = 'CHAPTER{1:02d}={0}\nCHAPTER{1:02d}NAME={2}\n'
+                        elif chapter_type == 'X264':
+                            chap = '{0} {2}\n'
+                        Trims2ts = [fmt_time(i[0],1) for i in Trims2ts]
+                        [output.write(chap.format(Trims2ts[i],i+1,chapter_names[i])) for i in range(len(Trims2ts))]
         if o.verbose:
             print("Writing {} Chapters to {}".format(chapter_type,o.chapters))
 
@@ -360,34 +385,6 @@ def convert_fps(fn,old,new):
     new=oldts/10**9*ofps
     new=floor(new) if floor(new) == floor(abs(new-0.4)) else floor(new-0.4)
     return new
-
-def generate_chapters(start, end, num, name, type):
-    """Generates chapters
-    
-    start = '00:00:00.000000000'
-    end = same as start
-    num = chapter number for OGM (int)
-    name = chapter name
-    type = 'MKV', 'OGM' or 'X264'
-    
-    """
-
-    if type == 'MKV':
-        return """
-		<ChapterAtom>
-			<ChapterTimeStart>{start}</ChapterTimeStart>
-			<ChapterTimeEnd>{end}</ChapterTimeEnd>
-			<ChapterDisplay>
-				<ChapterString>{name}</ChapterString>
-				<ChapterLanguage>eng</ChapterLanguage>
-			</ChapterDisplay>
-		</ChapterAtom>""".format(**locals())
-
-    elif type == 'OGM':
-        return 'CHAPTER{num:02d}={start}\nCHAPTER{num:02d}NAME={name}\n'.format(**locals())
-
-    elif type == 'X264':
-        return '{start} {name}\n'.format(**locals())
 
 def parse_avs(avs, label=None):
     """Parse an avisynth file. Scours it for the first uncommented trim line.

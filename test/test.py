@@ -14,7 +14,9 @@ args = [
         r'-i audio.flac -vf tc2-cfr.txt test.avs --test',
         r'-i audio.flac -vf tc2-vfr.txt test.avs --test',
         r'-f 24/1.001 -c chap-fps-{}.txt -n chnames.txt test.avs',
-        r'-f tc1-cfr.txt -c chap-cfr-{}.txt -n chnames.txt test.avs'
+        r'-f tc1-cfr.txt -c chap-cfr-{}.txt -n chnames.txt test.avs',
+        r'-f 24/1.001 -c chap-fps-{}.xml -n chnames.txt test.avs',
+        r'-f tc1-cfr.txt -c chap-cfr-{}.xml -t amkvc.mod.txt test.avs'
         ]
 stable = check_output('git tag',shell=True).decode()[:-1].split('\n')[-1]
 current = search('^\* (\w+)(?m)',check_output("git branch",shell=True).decode()[:-1]).group(1)
@@ -27,7 +29,7 @@ try:
     for i in range(len(old)):
         if old[i] != new[i]:
             fails.append(args[i])
-    chapters = [(f.format('old'),f.format('new')) for f in ['chap-fps-{}.txt','chap-cfr-{}.txt']]
+    chapters = [(f.format('old'),f.format('new')) for f in ['chap-fps-{}.txt','chap-cfr-{}.txt','chap-fps-{}.xml','chap-cfr-{}.xml']]
     for f in chapters:
         with open(f[0],'rb') as oldf:
             with open(f[1],'rb') as newf:
