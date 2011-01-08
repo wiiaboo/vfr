@@ -163,9 +163,7 @@ def main(args):
     # make qpfile
     if o.qpfile:
         if not o.test:
-            with open(o.qpfile, "w") as qpf:
-                for trim in Trims2[1:]:
-                    qpf.write('%s K\n' % trim[0])
+            write_qpfile(o.qpfile,Trims2)
         if o.verbose: print('Writing keyframes to %s\n' % o.qpfile)
 
     # make audio cuts
@@ -471,6 +469,15 @@ def generate_chapters(start, end, num, name, type):
 
     elif type == 'X264':
         return '{start} {name}\n'.format(**locals())
+
+def write_qpfile(qpfile,trims):
+    """Simply writes keyframes for use in x264 from a list of Trims."""
+    
+    with open(qpfile, "w") as qpf:
+        if trims[0][0] == 0:
+            del trims[0]
+        for trim in trims:
+            qpf.write('%s K\n' % trim[0])
 
 if __name__ == '__main__':
     main(argv[1:])
