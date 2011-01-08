@@ -1,0 +1,40 @@
+[info]
+editions=2
+lang=eng
+country=us
+inputfps=30
+outputfps=24
+createqpfile=1
+
+[edition1]
+name=Default
+default=1
+ordered=0
+chapters=6
+1name=Intro
+1chapter=1
+2name=Opening
+2chapter=2
+3name=Part 1
+3chapter=3
+4name=Part 2
+4chapter=4
+5name=Ending
+5chapter=5
+6name=Preview
+6chapter=6
+
+[edition2]
+name=No OP/ED
+default=0
+ordered=1
+chapters=4
+1name=Intro
+1chapter=1
+2name=Part 1
+2chapter=3
+2hidden=1
+3name=Part 2
+3chapter=4
+4name=Preview
+4chapter=6

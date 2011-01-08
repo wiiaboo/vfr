@@ -1,0 +1,17 @@
+FPS=23.976
+SegmentID=1234567890
+Editions=2
+EditionTitle=*Default
+Chapters=6
+Вступление,0,1701
+OP,1702,3855
+Part 1₹,3856,12103
+Part 2,12104,31882
+おわり,31883,34041
+Antevisão,34042,34756
+EditionTitle=No OP/ED
+Chapters=4
+Вступление,0,1701
+Part 1₹,3856,12103
+Part 2,12104,31882
+Antevisão,34042,34756

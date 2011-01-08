@@ -1,0 +1,35 @@
+FPS=23.976
+SegmentID=5950433503
+Editions=2
+EditionTitle=*Effects # in editions, * marks the default edition
+Chapters=21
+Splash,34525,34579
+Intro,7,1415
+OP,34580,36616
+Part 1,3453,13784
+Eyecatch,13785,14122
+Part 2,14123,20511
+*Dream Metamorphose,38798,39032 # in chapters, * marks it hidden
+*Part 2.1,20747,21128
+*Rouge Metamorphose,39033,39230
+*Part 2.2,21327,27530
+*Lemonade Metamorphose,39231,39482
+*Part 2.3,27783,28993
+*Lemonade Attack,39483,39709
+*Part 2.4,29221,29558
+*Rouge Attack,39710,39919
+*Part 2.5,29769,29857
+*Dream Attack,39920,40100
+*Part 2.6,30039,31888
+ED,36617,38773
+Preview,38774,38797
+*Preview.1,34070,34524
+EditionTitle=Raw
+Chapters=7
+Intro,0,1415
+OP,1416,3452
+Part 1,3453,13784
+Eyecatch,13785,14122
+Part 2,14123,31888
+ED,31889,34045
+Preview,34046,34524

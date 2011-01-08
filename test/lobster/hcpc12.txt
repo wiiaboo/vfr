@@ -1,0 +1,10 @@
+FPS=23.976
+Splash=51 # Offsets the beginning of the episode.
+Chapters=7
+Intro,0
+OP,1629
+Part 1,4027
+Eyecatch,13569
+Part 2,13903
+ED,32244
+Preview,34400
