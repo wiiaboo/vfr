@@ -15,15 +15,16 @@ args = [
         r'-i audio.flac -vf tc2-vfr.txt test.avs --test',
         r'-f 24/1.001 -c chap-fps-{}.txt -n chnames.txt test.avs',
         r'-f tc1-cfr.txt -c chap-cfr-{}.txt -n chnames.txt test.avs',
-        r'-f 24/1.001 -c chap-fps-{}.xml -n chnames.txt test.avs',
-        r'-f tc1-cfr.txt -c chap-cfr-{}.xml -t amkvc.mod.txt test.avs'
+        r'-f 24/1.001 -c chap-fps-{}.xml -n chnames.txt --uid 123456 test.avs',
+        r'-f tc1-cfr.txt -c chap-cfr-{}.xml -t amkvc.mod.txt --uid 123456 test.avs'
         ]
 stable = check_output('git tag',shell=True).decode()[:-1].split('\n')[-1]
 current = search('^\* (\w+)(?m)',check_output("git branch",shell=True).decode()[:-1]).group(1)
 
-check_output('git show %s:vfr.py > vfrold.py' % stable,shell=True)
+check_output('git show %s:vfr.py > vfr.py' % stable,shell=True)
+check_output('git show %s:templates.py > templates.py' % stable,shell=True)
 try:
-    old = [check_output(r'python vfrold.py %s' % command.format('old'),shell=True) for command in args]
+    old = [check_output(r'python vfr.py %s' % command.format('old'),shell=True) for command in args]
     new = [check_output(r'python ..\vfr.py %s' % command.format('new'),shell=True) for command in args]
     fails = []
     for i in range(len(old)):
@@ -42,7 +43,8 @@ try:
         [print(i) for i in fails]
     else:
         print('All tests passed.')
-        unlink('vfrold.py')
+        unlink('vfr.py')
+        unlink('templates.py')
         [[unlink(ff) for ff in f] for f in chapters]
 except CalledProcessError:
     pass
