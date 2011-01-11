@@ -30,7 +30,7 @@ try:
     for i in range(len(old)):
         if old[i] != new[i]:
             fails.append(args[i])
-    chapters = [(f.format('old'),f.format('new')) for f in ['chap-fps-{}.txt','chap-cfr-{}.txt','chap-fps-{}.xml','chap-cfr-{}.xml']]
+    chapters = [(f.format('old'),f.format('new')) for f in ['chap-fps-{}.txt','chap-cfr-{}.txt','chap-fps-{}.xml','chap-cfr-{}.xml','chap-cfr-{}tags.xml','chap-cfr-{}.qpfile']]
     for f in chapters:
         with open(f[0],'rb') as oldf:
             with open(f[1],'rb') as newf:
@@ -43,8 +43,7 @@ try:
         [print(i) for i in fails]
     else:
         print('All tests passed.')
-        unlink('vfr.py')
-        unlink('templates.py')
+        f += ['vfr.py','templates.py']
         [[unlink(ff) for ff in f] for f in chapters]
 except CalledProcessError:
     pass

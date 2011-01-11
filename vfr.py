@@ -176,6 +176,9 @@ def main(args):
                 from templates import AutoMKVChapters as amkvc
                 tmp = amkvc.Template()
                 tmp.trims = Trims2ts
+                tmp.kframes = Trims2
+                if o.qpfile:
+                    tmp.qpf = o.qpfile
                 ed = tmp.Edition()
                 ed.default = 1
                 ed.num_chapters = len(chapter_names)

@@ -12,7 +12,8 @@ country=us,pt
 inputfps=30
 outputfps=24
 # if it's not 0 or 1, it's assumed to be a filename
-createqpfile=ep.qpf
+#createqpfile=ep.qpf
+createqpfile=1
 # added: you can use your own uid
 # in [info] it will serve as base for the other UIDs
 uid=123456
