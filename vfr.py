@@ -412,7 +412,7 @@ def parse_avs(avs, label=None):
 
     return Trims
 
-def parse_trims(avs, fps, ofps=None, otc=None, input=None, label=None):
+def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
     """Parse trims from an avisynth file.
 
     Returns 5 lists containing:
@@ -438,11 +438,11 @@ def parse_trims(avs, fps, ofps=None, otc=None, input=None, label=None):
     tc, max = parse_tc(fps, int(Trims[-1][1])+2,otc)
     if tc[1] == 'vfr' and ofps:
         exit("Can't use --ofps with timecodes file input")
-    if ofps and fps != ofps:
-        ofps = parse_tc(ofps)[0]
+    if outfps and fps != outfps:
+        ofps = parse_tc(outfps, int(Trims[-1][1])+2)[0]
         if otc:
             max = convert_fps(int(Trims[-1][1]),tc,ofps)
-            parse_tc(ofps,max+2,otc)
+            parse_tc(outfps,max+2,otc+'ofps.txt')
 
     # Parse trims
     for i in range(nt1):
@@ -488,7 +488,7 @@ def parse_trims(avs, fps, ofps=None, otc=None, input=None, label=None):
         fn2ts -= offsetts
 
         # Convert fps if ofps is supplied
-        if ofps and fps != ofps:
+        if outfps and fps != outfps:
             fn1 = convert_fps(fn1,tc,ofps) if fn1 != 0 else 0
             fn2 = convert_fps(fn2,tc,ofps)
             fn1ts = truncate(get_ts(fn1,ofps))
