@@ -345,11 +345,10 @@ def parse_tc(tcfile, max=0, otc=None,first=0):
                 average = 0
                 for i in range(-sample,0):
                     average += round(float(v1[i])-float(v1[i-1]),6)
-                fps = correct_to_ntsc(Fraction.from_float(average / sample))
-                ret = convert_v1_to_v2([],max,fps,last=temp_max)
+                fps = correct_to_ntsc(Fraction.from_float(sample / average * 1000))
+                ret = convert_v1_to_v2([],max,fps,first=temp_max)
                 if v1[-1][-1] is not '\n': v1[-1] += '\n'
-                for fn in range(temp_max,max):
-                    v1 += ['%3.6f\n' % i for i in ret]
+                v1 += ['%3.6f\n' % i for i in ret]
             timecodes = v1
 
     return (timecodes, type), max
