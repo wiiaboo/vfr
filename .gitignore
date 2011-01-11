@@ -2,6 +2,9 @@
 *.pyc
 *.diff
 *.converted.txt
+*.mkv
+*.ass
+*.ffindex
 .project
 .pydevproject
 .settings
