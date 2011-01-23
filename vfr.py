@@ -439,7 +439,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
 
     # Parse timecodes/fps
     tc, max = parse_tc(fps, int(Trims[-1][1])+2,otc)
-    if tc[1] == 'vfr' and ofps:
+    if tc[1] == 'vfr' and outfps:
         exit("Can't use --ofps with timecodes file input")
     if outfps and fps != outfps:
         ofps = parse_tc(outfps, int(Trims[-1][1])+2)[0]
