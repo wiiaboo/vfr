@@ -30,7 +30,7 @@ try:
     for i in range(len(old)):
         if old[i] != new[i]:
             fails.append(args[i])
-    chapters = [(f.format('old'),f.format('new')) for f in ['chap-fps-{}.txt','chap-cfr-{}.txt','chap-fps-{}.xml','chap-cfr-{}.xml','chap-cfr-{}tags.xml','chap-cfr-{}.qpfile']]
+    chapters = [[f.format('old'),f.format('new')] for f in ['chap-fps-{}.txt','chap-cfr-{}.txt','chap-fps-{}.xml','chap-cfr-{}.xml','chap-cfr-{}tags.xml','chap-cfr-{}.qpfile']]
     for f in chapters:
         with open(f[0],'rb') as oldf:
             with open(f[1],'rb') as newf:
