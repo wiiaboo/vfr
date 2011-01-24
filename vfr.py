@@ -450,10 +450,10 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
     # Parse trims
     for i in range(nt1):
         fn1 = int(Trims[i][0])
-        fn1ts = truncate(get_ts(fn1,tc))
+        fn1ts = get_ts(fn1,tc)
         fn1tsaud = get_ts(fn1,tc)
         fn2 = int(Trims[i][1])
-        fn2ts = truncate(get_ts(fn2,tc))
+        fn2ts = get_ts(fn2,tc)
         fn2tsaud = get_ts(fn2+1,tc)
         adjacent = False
         Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
@@ -469,7 +469,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
         else:
             # If it's not the first trim
             last = int(Trims[i-1][1])
-            lastts = truncate(get_ts(last+1,tc))
+            lastts = get_ts(last+1,tc)
             adjacent = True if not fn1-(last+1) else False
             offset += fn1-(last+1)
             offsetts += 0 if adjacent else fn1ts-lastts           
