@@ -375,7 +375,7 @@ def get_ts(fn,tc,scale=0):
         ts = round(float(tc[fn])*10**(scale-3))
         return ts
 
-def convert_fps(fn,old,new):
+def convert_fps(ofn,old,new,oldts=None):
     """Returns a frame number from fps and ofps (ConvertFPS)
     
     fn = frame number
@@ -383,11 +383,75 @@ def convert_fps(fn,old,new):
     new = output fps ('24000/1001', etc.)
     
     """
-    oldts=get_ts(fn,old)
-    ofps=new[0]
-    new=oldts/10**9*ofps
-    new=floor(new) if floor(new) == floor(abs(new-0.4)) else floor(new-0.4)
-    return new
+
+    newts = 0
+    nfn = 0
+    thr = get_ts(1,old) # milliseconds
+    newframes = []
+    newtimestamps = []
+    temp = temp2 = []
+    
+    for i in ofn:
+        for j in i:
+            temp.append(j)
+    
+    ofn = temp
+    
+    if not oldts:
+        oldtsi = []
+        for fn in ofn:
+            oldtsi.append(get_ts(fn,old))
+    else:
+        oldtsi = []
+        for i in oldts:
+            for j in i:
+                oldtsi.append(j)
+
+    for i in range(len(ofn)):
+
+        fn = ofn[i]
+        ots = oldtsi[i]
+        nts = get_ts(nfn,new)
+        if ots-nts >= thr:
+            while (ots-nts > thr):
+                nfn += 1
+                nts = get_ts(nfn,new)
+            if len(newframes) != 0 and nfn == newframes[-1]:
+                newframes[-1] -= 1
+                newtimestamps[-1] = get_ts(newframes[-1],new)
+                newframes.append(nfn)
+                newtimestamps.append(nts)
+            else:
+                newframes.append(nfn)
+                newtimestamps.append(nts)
+        elif ots-nts < thr:
+            if len(newframes) != 0 and nfn == newframes[-1]:
+                newframes[-1] -= 1
+                newframes.append(nfn)
+                newtimestamps.append(nts)
+            else:
+                newframes.append(nfn)
+                newtimestamps.append(nts)
+        else:
+            nfn = 0
+            while (ots-nts > thr):
+                nfn += 1
+                nts = get_ts(nfn,new)
+            newframes.append(nfn)
+            newtimestamps.append(nts)
+
+    if len(newframes) % 2 == 0:
+        temp = []
+        temp2 = []
+        for i in range(0,len(newframes),2):
+            temp.append([newframes[i],newframes[i+1]])
+            temp2.append([newtimestamps[i],newtimestamps[i+1]])
+        newframes, newtimestamps = temp, temp2
+
+    if oldts:
+        return newframes, newtimestamps
+    else:
+        return newframes
 
 def parse_avs(avs, label=None):
     """Parse an avisynth file. Scours it for the first uncommented trim line.
@@ -444,7 +508,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
     if outfps and fps != outfps:
         ofps = parse_tc(outfps, int(Trims[-1][1])+2)[0]
         if otc:
-            max = convert_fps(int(Trims[-1][1]),tc,ofps)
+            max = convert_fps([int(Trims[-1][1])],tc,ofps)
             parse_tc(outfps,max+2,otc+'ofps.txt')
 
     # Parse trims
@@ -490,16 +554,13 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
         fn1ts -= offsetts
         fn2ts -= offsetts
 
-        # Convert fps if ofps is supplied
-        if outfps and fps != outfps:
-            fn1 = convert_fps(fn1,tc,ofps) if fn1 != 0 else 0
-            fn2 = convert_fps(fn2,tc,ofps)
-            fn1ts = truncate(get_ts(fn1,ofps))
-            fn2ts = truncate(get_ts(fn2,ofps))
-
         # Add trims and their timestamps to list
         Trims2.append([fn1,fn2])
         Trims2ts.append((fn1ts,fn2ts))
+
+    # Convert fps if ofps is supplied
+    if outfps and fps != outfps:
+        Trims2, Trims2ts = convert_fps(Trims2,tc,ofps,Trims2ts)
 
     return Trims, Trimsts, Trims2, Trims2ts, audio
 
