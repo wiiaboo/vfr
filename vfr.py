@@ -107,7 +107,7 @@ def main(args):
             includefirst = False
         cuttimes = ','.join(audio)
         quiet = '' if o.verbose else '-q'
-        cutCmd = '"%s" -o "%s" --sync 0:%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, o.input, cuttimes, quiet)
+        cutCmd = '"%s" -o "%s" --sync 0:%s --aac-is-sbr 0 "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, o.input, cuttimes, quiet)
         if o.verbose: print('Cutting: %s\n' % cutCmd)
         if not o.test:
             cutExec = call(cutCmd)
