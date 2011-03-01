@@ -36,6 +36,7 @@ def main(args):
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
     p.add_option('--remove', '-r', action="store_true", help='Remove cut files', dest="remove")
     p.add_option('--test', action="store_true", help="Test mode (do not create new files)", dest="test")
+    p.add_option('--sbr', action="store_true", help="Set this if inputting an .aac and it's SBR/HE-AAC", dest="sbr")
     (o, a) = p.parse_args(args)
 
     if len(a) < 1:
@@ -63,7 +64,7 @@ def main(args):
     if o.verbose:
         status =  "Avisynth file:   %s\n" % a[0]
         status += "Label:           %s\n" % o.label if o.label else ""
-        status += "Audio file:      %s\n" % o.input if o.input else ""
+        status += "Audio file:      %s%s\n" % (o.input, "(SBR)" if o.sbr else "") if o.input else ""
         status += "Cut Audio file:  %s\n" % o.output if o.output else ""
         status += "Timecodes/FPS:   %s%s\n" % (o.fps," to "+o.ofps if o.ofps else "") if o.ofps != o.fps else ""
         status += "Output v2 Tc:    %s\n" % o.otc if o.otc else ""
@@ -107,7 +108,8 @@ def main(args):
             includefirst = False
         cuttimes = ','.join(audio)
         quiet = '' if o.verbose else '-q'
-        cutCmd = '"%s" -o "%s" --sync 0:%s --aac-is-sbr 0 "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, o.input, cuttimes, quiet)
+        aac = " --aac-is-sbr 0:1" if o.sbr else " "
+        cutCmd = '"%s" -o "%s" --sync 0:%s%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, aac, o.input, cuttimes, quiet)
         if o.verbose: print('Cutting: %s\n' % cutCmd)
         if not o.test:
             cutExec = call(cutCmd)
