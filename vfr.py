@@ -97,10 +97,8 @@ def main(args):
 
     # make audio cuts
     if o.input:
-        from subprocess import call
-        delre = compile('DELAY ([-]?\d+)')
-        ret = delre.search(o.input)
-        delay = ret.group(1) if ret else '0'
+        from subprocess import call, check_output
+        
         if Trims[0][0] == 0:
             includefirst = True
             audio = audio[1:]
@@ -108,8 +106,21 @@ def main(args):
             includefirst = False
         cuttimes = ','.join(audio)
         quiet = '' if o.verbose else '-q'
-        aac = " --aac-is-sbr 0:1" if o.sbr else " "
-        cutCmd = '"%s" -o "%s" --sync 0:%s%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, aac, o.input, cuttimes, quiet)
+        
+        # get info from mkvmerge
+        ident = check_output([mkvmerge,"--identify-for-mmg",o.input])
+        identre = compile("Track ID (\d+): audio( \(AAC\) \[aac_is_sbr:true\])?")
+        ret = identre.search(ident.decode()) if ident else None
+        
+        tid = ret.group(1) if ret else '0'
+        sbr = " --aac-is-sbr 0:1" if o.sbr or ret.group(2) else " --aac-is-sbr 0:0" if o.input.endswith("aac") else ""
+
+        # determine delay
+        delre = compile('DELAY ([-]?\d+)')
+        ret = delre.search(o.input)
+        delay = ' --sync %s:%s' % (tid, ret.group(1)) if ret else ''
+
+        cutCmd = '"%s" -o "%s"%s%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, sbr, o.input, cuttimes, quiet)
         if o.verbose: print('Cutting: %s\n' % cutCmd)
         if not o.test:
             cutExec = call(cutCmd)
