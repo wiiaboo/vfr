@@ -18,7 +18,7 @@ mkvmerge = r'mkvmerge'
 def main(args):
     from optparse import OptionParser
     p = OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
-                     version='VFR Chapter Creator 0.8.4',
+                     version='VFR Chapter Creator 0.8.4.1',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l',action="store",dest="label",
                  help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim")
@@ -35,6 +35,7 @@ def main(args):
     p.add_option('--verbose', '-v', action="store_true", help='Verbose', dest="verbose")
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
     p.add_option('--remove', '-r', action="store_true", help='Remove cut files', dest="remove")
+    p.add_option('--delay', '-d', action="store", help="Set delay of audio (can be negative)", dest="delay")
     p.add_option('--test', action="store_true", help="Test mode (do not create new files)", dest="test")
     p.add_option('--sbr', action="store_true", help="Set this if inputting an .aac and it's SBR/HE-AAC", dest="sbr")
     (o, a) = p.parse_args(args)
@@ -118,7 +119,7 @@ def main(args):
         # determine delay
         delre = compile('DELAY ([-]?\d+)')
         ret = delre.search(o.input)
-        delay = ' --sync %s:%s' % (tid, ret.group(1)) if ret else ''
+        delay = ' --sync %s:%s' % (tid, o.delay if o.delay else ret.group(1)) if o.delay or ret else ''
 
         cutCmd = '"%s" -o "%s"%s%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, sbr, o.input, cuttimes, quiet)
         if o.verbose: print('Cutting: %s\n' % cutCmd)
