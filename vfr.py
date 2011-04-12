@@ -18,7 +18,7 @@ mkvmerge = r'mkvmerge'
 def main(args):
     from optparse import OptionParser
     p = OptionParser(description='Grabs avisynth trims and outputs chapter file, qpfile and/or cuts audio (works with cfr and vfr input)',
-                     version='VFR Chapter Creator 0.8.4.1',
+                     version='VFR Chapter Creator 0.8.4.2',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l',action="store",dest="label",
                  help="Look for a trim() statement only on lines matching LABEL, interpreted as a regular expression. Default: case insensitive trim")
@@ -107,6 +107,7 @@ def main(args):
             includefirst = False
         cuttimes = ','.join(audio)
         quiet = '' if o.verbose else '-q'
+        max_audio = len(audio)+2
         
         # get info from mkvmerge
         ident = check_output([mkvmerge,"--identify-for-mmg",o.input])
@@ -131,7 +132,6 @@ def main(args):
                 exit("Failed to execute mkvmerge: %d" % cutExec)
         if o.merge:
             merge = []
-            max_audio = len(audio)+2
             for i in range(1,max_audio):
                 if (includefirst == True and i % 2 != 0) or (includefirst == False and i % 2 == 0):
                     merge.append('"%s.split-%03d.mka"' % (o.output, i))
@@ -522,7 +522,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
     if outfps and fps != outfps:
         ofps = parse_tc(outfps, int(Trims[-1][1])+2)[0]
         if otc:
-            max = convert_fps([int(Trims[-1][1])],tc,ofps)
+            max = convert_fps([[int(Trims[-1][1])]],tc,ofps)
             parse_tc(outfps,max+2,otc+'ofps.txt')
 
     # Parse trims

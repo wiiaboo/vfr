@@ -166,6 +166,7 @@ class AutoMKVChapters:
             self.trims = False
 
         for i in range(self.num_editions):
+            from re import compile
             ed = self.Edition()
             ed.uid = self.uid * 100
             self.uid += 1
@@ -190,7 +191,10 @@ class AutoMKVChapters:
                 elif k == 'uid':
                     ed.uid = int(v)
                 else:
-                    stuff[int(k[0])].append((k[1:],v))
+                    opt_re = compile('(\d+)(\w+)')
+                    ret = opt_re.search(k)
+                    if ret:
+                        stuff[int(ret.group(1))].append((ret.group(2),v))
 
             for j in range(ed.num_chapters):
                 ch = self.Chapter()
@@ -216,10 +220,10 @@ class AutoMKVChapters:
 
                 if ch.chapter and not (ch.start and ch.end):
                     ch.start, ch.end = self.trims[ch.chapter-1] if self.trims else (ch.start, ch.end)
-                elif ch.suid and not ch.end:
+                elif ch.suid:
                     from os.path import isfile
                     from subprocess import check_output
-                    from re import compile
+                    
                     suid_re = compile('^\| \+ Segment UID: (.*)(?m)')
                     duration_re = compile('^\| \+ Duration: \d+\.\d*s \((\d+:\d+:\d+.\d+)\)(?m)')
                     suid = None
@@ -236,12 +240,12 @@ class AutoMKVChapters:
                             suid = ret.group(1).strip().replace('0x','').replace(' ','') if ret else 0
                             if suid == ch.suid.strip().replace('0x','').replace(' ',''):
                                 break
-                    if suid:
+                    if suid and not ch.start or ch.end:
                         ret = duration_re.search(info)
                         if ret:
                             ch.suid = suid
-                            ch.start = '00:00:00.000'
-                            ch.end = ret.group(1)
+                            ch.start = '00:00:00.000' if ch.start == False else ch.start
+                            ch.end = ret.group(1) if ch.end == False else ch.end
                     else:
                         ch.suid = False
                         ch.start = '00:00:00.000'
