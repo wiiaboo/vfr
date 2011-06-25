@@ -29,6 +29,7 @@ Optional:
 -i = Audio to be cut (takes whatever mkvmerge takes)
 -o = Cut audio inside .mka
      Default: input.cut.mka
+-d = Manually set delay time for input audio (can be negative)
 -f = Frames per second or timecodes file if vfr input
      (takes "25", "24000/1001", "30000:1001", "24/1.001" and "30:1.001" as cfr input)
      Default: 30000/1001
@@ -38,9 +39,12 @@ Optional:
      if extension is 'x264.txt', outputs x264 Chapters; else, outputs OGM Chapters
 -n = Text file with chapter names, one per line; assumed to be UTF-8 without BOM
 -q = QPFile for use in x264; will use --ofps frames
+-t = Template file for advanced Matroska chapters
 -v = Verbose mode
 -m = Merge split audio files
 -r = Remove split audio files after merging
+--uid = Set base UID for --template/--chnames
+--chnames = Path to basic text containing chapter titles separated by newlines
 --ofps = Output FPS (used in qpfile, v2 timecodes and avs export)
          Default: -f
 --timecodes = Output v2 timecodes (from fps and v1 parsing) (if using --ofps, outputs v2 timecodes using this)
