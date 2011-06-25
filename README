@@ -50,3 +50,6 @@ outtrims.avs = If chapparse.py is present, outputs .avs with offset and converte
 To do:
 - accept template files to help with ordered chapters (as automkvchapters)
 - optimize code and/or improve its legibility
+
+Known issues:
+- Conversion from a different input fps to output fps is not accurate (probably no way it can ever be fixed)
