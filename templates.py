@@ -230,15 +230,15 @@ class AutoMKVChapters:
                     if isfile(ch.suid):
                         info = check_output(['mkvinfo','--output-charset','utf-8',ch.suid]).decode('utf-8')
                         ret = suid_re.search(info)
-                        suid = ret.group(1).strip().replace('0x','').replace(' ','') if ret else 0
+                        suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
                     else:
                         from glob import glob
                         mkvfiles = glob('*.mkv')
                         for file in mkvfiles:
                             info = check_output(['mkvinfo','--output-charset','utf-8',file]).decode('utf-8')
                             ret = suid_re.search(info)
-                            suid = ret.group(1).strip().replace('0x','').replace(' ','') if ret else 0
-                            if suid == ch.suid.strip().replace('0x','').replace(' ',''):
+                            suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
+                            if suid == ch.suid.lower().strip().replace('0x','').replace(' ',''):
                                 break
                     if suid and not ch.start or ch.end:
                         ret = duration_re.search(info)
