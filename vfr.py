@@ -170,7 +170,7 @@ def main(args):
         if o.template:
             from templates import AutoMKVChapters as amkvc
             output = o.chapters[:-4] if not o.test else None
-            chaps = amkvc(o.template,output=output,trims=Trims2ts,kframes=Trims2,uid=o.uid)
+            chaps = amkvc(o.template,output=output,avs=a[0],trims=Trims2ts,kframes=Trims2,uid=o.uid)
             
 
         else:
