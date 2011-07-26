@@ -13,13 +13,14 @@ What it does (for now):
     No longer needs tcConv but converts v1 timecodes to v2 internally;
     If requested, can output v2 timecodes from v1 and fps parsing. If --ofps is being used, v2 timecodes will use it.;
     Can output a qpfile with converted frames meant to be used for an ivtc'd encode using non-ivtc'd frames (feature inspired by automkvchapters) (not completely accurate, obviously);
-    Using FFmpegsource's CorrectNTSCRationalFramerate, this is actually more precise in the v2 timecodes it produces than tcConv.
+    Using FFmpegsource's CorrectNTSCRationalFramerate, this is actually more precise in the v2 timecodes it produces than tcConv;
+    Accepts AutoMKVChapters-like templates.
 
 Only the .avs with trims is required for vfr.py to run. You can use -v and/or --test to debug the script. All other options and arguments are optional.
 
 Usage:
 
-vfr.py -i audio.aac -o audio.cut.mka -f 30/1.001 -l tRim -c chapters.xml \
+vfr.py -i audio.aac -o audio.cut.mka -f 30/1.001 -l tRim -c chapters.xml -t template.txt \
 -n chnames.txt -q qpfile.qpf -vmr --ofps 24/1.001 --timecodes v2.txt --test trims.avs outtrims.avs
 
 Required:
@@ -52,7 +53,6 @@ Optional:
 outtrims.avs = If chapparse.py is present, outputs .avs with offset and converted trims
 
 To do:
-- accept template files to help with ordered chapters (as automkvchapters)
 - optimize code and/or improve its legibility
 
 Known issues:
