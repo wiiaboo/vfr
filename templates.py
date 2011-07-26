@@ -28,9 +28,9 @@ class AutoMKVChapters:
 
             for ed in self.editions:
                 chf.write('\t<EditionEntry>\n')
-                chf.write('\t\t<EditionFlagHidden>%d</EditionFlagHidden>\n' % ed.hidden)
-                chf.write('\t\t<EditionFlagDefault>%d</EditionFlagDefault>\n' % ed.default)
-                chf.write('\t\t<EditionFlagOrdered>%d</EditionFlagOrdered>\n' % ed.ordered)
+                chf.write('\t\t<EditionFlagHidden>%d</EditionFlagHidden>\n' % ed.hidden if ed.hidden else '')
+                chf.write('\t\t<EditionFlagDefault>%d</EditionFlagDefault>\n' % ed.default if ed.default else '')
+                chf.write('\t\t<EditionFlagOrdered>%d</EditionFlagOrdered>\n' % ed.ordered if ed.ordered else '')
                 chf.write('\t\t<EditionUID>%d</EditionUID>\n' % ed.uid)
                 
                 if tagf:
@@ -52,7 +52,7 @@ class AutoMKVChapters:
                     for i in range(num_names):
                         chf.write('\t\t\t<ChapterDisplay>\n')
                         chf.write('\t\t\t\t<ChapterString>%s</ChapterString>\n' % (ch.name[i] if ch.name[i] != '' else ch.name[i-1]))
-                        chf.write('\t\t\t\t<ChapterLanguage>%s</ChapterLanguage>\n' % self.lang[i])
+                        chf.write('\t\t\t\t<ChapterLanguage>%s</ChapterLanguage>\n' % self.lang[i] if self.lang[i] != 'eng' else '')
                         chf.write('\t\t\t\t<ChapterCountry>%s</ChapterCountry>\n' % self.country[i] if i < len(self.country) else '')
                         chf.write('\t\t\t</ChapterDisplay>\n')
                     chf.write('\t\t\t<ChapterUID>%d</ChapterUID>\n' % ch.uid)
