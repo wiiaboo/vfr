@@ -140,6 +140,10 @@ class AutoMKVChapters:
         self = self.Template()
         self.editions = []
         self.uid = uid if uid else self.uid
+        
+        # Set placeholder for mkvinfo output
+        mkv_globbed = False
+        mkvinfo = {}
 
         for k, v in config.items('info'):
             if k == 'lang':
@@ -231,24 +235,24 @@ class AutoMKVChapters:
                         info = check_output(['mkvinfo','--output-charset','utf-8',ch.suid]).decode('utf-8')
                         ret = suid_re.search(info)
                         suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
-                    else:
+                        ret = duration_re.search(info)
+                        duration = ret.group(1) if ret else 0
+                        mkvinfo[suid] = {'file': file, 'duration': duration}
+                    elif not mkv_globbed:
                         from glob import glob
                         mkvfiles = glob('*.mkv')
                         for file in mkvfiles:
                             info = check_output(['mkvinfo','--output-charset','utf-8',file]).decode('utf-8')
                             ret = suid_re.search(info)
                             suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
-                            if suid == ch.suid.lower().strip().replace('0x','').replace(' ',''):
-                                break
-                            else:
-                                suid = None
-                    if suid and not (ch.start or ch.end):
-                        ret = duration_re.search(info)
-                        if ret:
-                            ch.suid = suid
-                            ch.start = '00:00:00.000' if ch.start == False else ch.start
-                            ch.end = ret.group(1) if ch.end == False else ch.end
-                        
+                            ret = duration_re.search(info)
+                            duration = ret.group(1) if ret else 0
+                            mkvinfo[suid] = {'file': file, 'duration': duration}
+                        mkv_globbed = True
+                    if not (ch.start or ch.end):
+                        ch.start = '00:00:00.000' if not ch.start else ch.start
+                        ch.end = mkvinfo[suid]['duration'] if not ch.end and (ch.suid in mkvinfo) else ch.end
+
                 ed.chapters.append(ch)
             self.editions.append(ed)
         if output:
