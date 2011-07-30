@@ -240,17 +240,14 @@ class AutoMKVChapters:
                             suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
                             if suid == ch.suid.lower().strip().replace('0x','').replace(' ',''):
                                 break
-                    if suid and not ch.start or ch.end:
+                            else:
+                                suid = None
+                    if suid and not (ch.start or ch.end):
                         ret = duration_re.search(info)
                         if ret:
                             ch.suid = suid
                             ch.start = '00:00:00.000' if ch.start == False else ch.start
                             ch.end = ret.group(1) if ch.end == False else ch.end
-                    else:
-                        ch.suid = False
-                        ch.start = '00:00:00.000'
-                        ch.end = '00:00:00.000'
-                        ch.enabled = 0
                         
                 ed.chapters.append(ch)
             self.editions.append(ed)
