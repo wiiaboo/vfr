@@ -216,7 +216,7 @@ class AutoMKVChapters:
                     elif k == 'end':
                         ch.end = v
                     elif k == 'suid':
-                        ch.suid = v
+                        ch.suid = v.lower().strip().replace('0x','').replace(' ','') if ret else 0
                     elif k == 'hidden':
                         ch.hidden = int(v)
                     elif k == 'enabled':
@@ -251,7 +251,7 @@ class AutoMKVChapters:
                         mkv_globbed = True
                     if not (ch.start or ch.end):
                         ch.start = '00:00:00.000' if not ch.start else ch.start
-                        ch.end = mkvinfo[suid]['duration'] if not ch.end and (ch.suid in mkvinfo) else ch.end
+                        ch.end = mkvinfo[ch.suid]['duration'] if not ch.end and (ch.suid in mkvinfo) else ch.end
 
                 ed.chapters.append(ch)
             self.editions.append(ed)
