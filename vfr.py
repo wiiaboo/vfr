@@ -27,7 +27,7 @@ def main(args):
     p.add_option('--fps', '-f', action="store", help='Frames per second or Timecodes file', dest="fps")
     p.add_option('--ofps', action="store", help='Output frames per second', dest="ofps")
     p.add_option('--timecodes', action="store", help='Output v2 timecodes', dest="otc")
-    p.add_option('--chapters', '-c', action="store", help='Chapters file [.%s/.txt]' % "/.".join(exts.keys()), dest="chapters")
+    p.add_option('--chapters', '-c', action="store", help='Chapters file [.{0}/.txt]'.format("/.".join(exts.keys())), dest="chapters")
     p.add_option('--chnames', '-n', action="store", help='Path to template file for chapter names (utf8 w/o bom)', dest="chnames")
     p.add_option('--template', '-t', action="store", help="Template file for chapters", dest="template")
     p.add_option('--uid', action="store", help="Base UID for --template or --chnames", dest="uid")
@@ -47,7 +47,7 @@ def main(args):
 
     #Determine chapter type
     if o.chapters:
-        chre = compile("\.(%s)$(?i)" % "|".join(exts.keys()))
+        chre = compile("\.({0})$(?i)".format("|".join(exts.keys())))
         ret = chre.search(o.chapters)
         chapter_type = exts[ret.group(1).lower()] if ret else "OGM"
     else:
@@ -60,23 +60,23 @@ def main(args):
 
     if not o.output and o.input:
         ret = splitext(o.input)
-        o.output = '%s.cut.mka' % ret[0]
+        o.output = '{0}.cut.mka'.format(ret[0])
 
     if o.verbose:
-        status =  "Avisynth file:   %s\n" % a[0]
-        status += "Label:           %s\n" % o.label if o.label else ""
-        status += "Audio file:      %s%s\n" % (o.input, "(SBR)" if o.sbr else "") if o.input else ""
-        status += "Cut Audio file:  %s\n" % o.output if o.output else ""
-        status += "Timecodes/FPS:   %s%s\n" % (o.fps," to "+o.ofps if o.ofps else "") if o.ofps != o.fps else ""
-        status += "Output v2 Tc:    %s\n" % o.otc if o.otc else ""
-        status += "Chapters file:   %s%s\n" % (o.chapters," (%s)" % chapter_type if chapter_type else "") if o.chapters else ""
-        status += "Chapter Names:   %s\n" % o.chnames if o.chnames else ""
-        status += "Template file:   %s\n" % o.template if o.template else ""
-        status += "QP file:         %s\n" % o.qpfile if o.qpfile else ""
+        status =  "Avisynth file:   {0}\n".format(a[0])
+        status += "Label:           {0}\n".format(o.label) if o.label else ""
+        status += "Audio file:      {0}{1}\n".format(o.input, "(SBR)" if o.sbr else "") if o.input else ""
+        status += "Cut Audio file:  {0}\n".format(o.output) if o.output else ""
+        status += "Timecodes/FPS:   {0}{1}\n".format(o.fps, " to " + o.ofps if o.ofps else "") if o.ofps != o.fps else ""
+        status += "Output v2 Tc:    {0}\n".format(o.otc) if o.otc else ""
+        status += "Chapters file:   {0}{1}\n".format(o.chapters, " ({0})".format(chapter_type) if chapter_type else "") if o.chapters else ""
+        status += "Chapter Names:   {0}\n".format(o.chnames) if o.chnames else ""
+        status += "Template file:   {0}\n".format(o.template) if o.template else ""
+        status += "QP file:         {0}\n".format(o.qpfile) if o.qpfile else ""
         status += "\n"
-        status += "Merge/Rem files: %s/%s\n" % (o.merge,o.remove) if o.merge or o.remove else ""
-        status += "Verbose:         %s\n" % o.verbose if o.verbose else ""
-        status += "Test Mode:       %s\n" % o.test if o.test else ""
+        status += "Merge/Rem files: {0}/{1}\n".format(o.merge, o.remove) if o.merge or o.remove else ""
+        status += "Verbose:         {0}\n".format(o.verbose) if o.verbose else ""
+        status += "Test Mode:       {0}\n".format(o.test) if o.test else ""
 
         print(status)
 
@@ -85,68 +85,74 @@ def main(args):
 
     nt2 = len(Trims2ts)
     if o.verbose:
-        print('In trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims]))
-        print('In timecodes: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trimsts]))
-        print('Out trims: %s\n' % ', '.join(['(%s,%s)' % (i[0],i[1]) for i in Trims2]))
-        print('Out timecodes: %s\n' % ', '.join(['(%s,%s)' % (fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]))
+        print('In trims: {0}\n'.format(', '.join(['({0},{1})'.format(i[0], i[1]) for i in Trims])))
+        print('In timecodes: {0}\n'.format(', '.join(['({0},{1})'.format(i[0], i[1]) for i in Trimsts])))
+        print('Out trims: {0}\n'.format(', '.join(['({0},{1})'.format(i[0], i[1]) for i in Trims2])))
+        print('Out timecodes: {0}\n'.format(', '.join(['({0},{1})'.format(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts])))
 
     # make qpfile
     if o.qpfile and not o.template:
         if not o.test:
             write_qpfile(o.qpfile,Trims2)
-        if o.verbose: print('Writing keyframes to %s\n' % o.qpfile)
+        if o.verbose: print('Writing keyframes to {0}\n'.format(o.qpfile))
 
     # make audio cuts
     if o.input:
         from subprocess import call, check_output
-        
+
         if Trims[0][0] == 0:
             includefirst = True
             audio = audio[1:]
         else:
             includefirst = False
         cuttimes = ','.join(audio)
-        quiet = '' if o.verbose else '-q'
         max_audio = len(audio)+2
-        
+
         # get info from mkvmerge
-        ident = check_output([mkvmerge,"--identify-for-mmg",o.input])
+        ident = check_output([mkvmerge, "--identify-for-mmg", o.input])
         identre = compile("Track ID (\d+): audio( \(AAC\) \[aac_is_sbr:true\])?")
         ret = identre.search(ident.decode()) if ident else None
-        
+
         tid = ret.group(1) if ret else '0'
-        sbr = " --aac-is-sbr 0:1" if o.sbr or ret.group(2) else " --aac-is-sbr 0:0" if o.input.endswith("aac") else ""
+        sbr = "0:1" if o.sbr or ret.group(2) else "0:0" if o.input.endswith("aac") else ""
 
         # determine delay
         delre = compile('DELAY ([-]?\d+)')
         ret = delre.search(o.input)
-        delay = ' --sync %s:%s' % (tid, o.delay if o.delay else ret.group(1)) if o.delay or ret else ''
+        delay = '{0}:{1}'.format(tid, o.delay if o.delay else ret.group(1)) if o.delay or ret else None
 
-        cutCmd = '"%s" -o "%s"%s%s "%s" --split timecodes:%s %s' % (mkvmerge, o.output + '.split.mka', delay, sbr, o.input, cuttimes, quiet)
-        if o.verbose: print('Cutting: %s\n' % cutCmd)
+        cutCmd = [mkvmerge, '-o', o.output + '.split.mka', o.input, '--split', 'timecodes:' + cuttimes]
+        if delay: cutCmd.extend(['--sync', delay])
+        if sbr: cutCmd.extend(['--aac-is-sbr', sbr])
+        if o.verbose: print('Cutting: {0}\n'.format(' '.join(['"{0}"'.format(i) for i in cutCmd])))
+        else: cutCmd.append('-q')
+
         if not o.test:
             cutExec = call(cutCmd)
             if cutExec == 1:
-                print("Mkvmerge exited with warnings: %d" % cutExec)
+                print("Mkvmerge exited with warnings: {0:d}".format(cutExec))
             elif cutExec == 2:
-                exit("Failed to execute mkvmerge: %d" % cutExec)
+                exit("Failed to execute mkvmerge: {0:d}".format(cutExec))
         if o.merge:
             merge = []
             for i in range(1,max_audio):
                 if (includefirst == True and i % 2 != 0) or (includefirst == False and i % 2 == 0):
-                    merge.append('"%s.split-%03d.mka"' % (o.output, i))
-            mergeCmd = '"%s" -o "%s" %s %s' % (mkvmerge,o.output, ' +'.join(merge), quiet)
-            if o.verbose: print('\nMerging: %s\n' % mergeCmd)
+                    merge.append('"{0}.split-{1:3d}.mka"'.format(o.output, i))
+            #mergeCmd = '"%s" -o "%s" %s %s' % (mkvmerge,o.output, ' +'.join(merge), quiet)
+            mergeCmd = [mkvmerge, o.output, ' +'.join(merge)]
+            if o.verbose: print('\nMerging: {0}\n'.format(mergeCmd))
+            else: mergeCmd.append('-q')
+
             if not o.test:
                 mergeExec = call(mergeCmd)
                 if mergeExec == 1:
-                    print("Mkvmerge exited with warnings: %d" % mergeExec)
+                    print("Mkvmerge exited with warnings: {0:d}".format(mergeExec))
                 elif mergeExec == 2:
-                    exit("Failed to execute mkvmerge: %d" % mergeExec)
+                    exit("Failed to execute mkvmerge: {0:d}".format(mergeExec))
 
         if o.remove:
-            remove = ['%s.split-%03d.mka' % (o.output, i) for i in range(1,max_audio)]
-            if o.verbose: print('\nDeleting: %s\n' % ', '.join(remove))
+            remove = ['{0}.split-{1:3d}.mka'.format(o.output, i) for i in range(1,max_audio)]
+            if o.verbose: print('\nDeleting: {0}\n'.format(', '.join(remove)))
             if not o.test:
                 from os import unlink
                 [unlink(i) if isfile(i) else True for i in remove]
@@ -163,7 +169,7 @@ def main(args):
 
     # write chapters
     if chapter_type:
-        
+
         if chapter_type == 'MKV':
             Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
 
@@ -171,7 +177,6 @@ def main(args):
             from templates import AutoMKVChapters as amkvc
             output = o.chapters[:-4] if not o.test else None
             chaps = amkvc(o.template,output=output,avs=a[0],trims=Trims2ts,kframes=Trims2,uid=o.uid)
-            
 
         else:
             # Assign names to each chapter if --chnames
@@ -312,7 +317,7 @@ def convert_v1_to_v2(v1,max,asm,v2=None,first=0):
         with open(v2,'wb') as v2f:
             from os import linesep as ls
             header = [en('# timecode format v2'+ls)] if first == 0 else [b'']
-            v2f.writelines(header+[en(('%3.6f' % s)+ls ) for s in o[first:]])
+            v2f.writelines(header + [en(('{0:3.6f}'.format(s)) + ls ) for s in o[first:]])
     return o[first:]
 
 def parse_tc(tcfile, max=0, otc=None,first=0):
@@ -335,7 +340,7 @@ def parse_tc(tcfile, max=0, otc=None,first=0):
         timecodes = Fraction(num,den)
         if otc:
             convert_v1_to_v2([],max+2,timecodes,otc,first)
-    
+
     else:
         type = 'vfr'
         with open(tcfile) as tc:
@@ -348,7 +353,7 @@ def parse_tc(tcfile, max=0, otc=None,first=0):
             asm = ret[1] if len(ret) == 2 else exit('there is no assumed fps')
             if v1:
                 ret = convert_v1_to_v2(v1,max,asm,otc,first)
-                timecodes = ['%3.6f\n' % i for i in ret]
+                timecodes = ['{0:3.6f}\n'.format(i) for i in ret]
             else:
                 timecodes = correct_to_ntsc(asm)
                 type = 'cfr'
@@ -365,7 +370,7 @@ def parse_tc(tcfile, max=0, otc=None,first=0):
                 fps = correct_to_ntsc(Fraction.from_float(sample / average * 1000))
                 ret = convert_v1_to_v2([],max,fps,first=temp_max)
                 if v1[-1][-1] is not '\n': v1[-1] += '\n'
-                v1 += ['%3.6f\n' % i for i in ret]
+                v1 += ['{0:3.6f}\n'.format(i) for i in ret]
             timecodes = v1
 
     return (timecodes, type), max
@@ -483,7 +488,7 @@ def parse_avs(avs, label=None):
 
     with open(avs) as avsfile:
         avs = avsfile.readlines()
-        findTrims = compile("(?<!#)[^#]*\s*\.?\s*%s\((\d+)\s*,\s*(\d+)\)%s" % (label if label else "trim","" if label else "(?i)"))
+        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,\s*(\d+)\){1}".format(label if label else "trim", "" if label else "(?i)"))
         for line in avs:
             if findTrims.match(line):
                 Trims = trimre.findall(line)
@@ -550,7 +555,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
             lastts = get_ts(last+1,tc)
             adjacent = True if not fn1-(last+1) else False
             offset += fn1-(last+1)
-            offsetts += 0 if adjacent else fn1ts-lastts           
+            offsetts += 0 if adjacent else fn1ts-lastts
 
         if input:
             # Make list with timecodes to cut audio
@@ -580,12 +585,12 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
 
 def write_qpfile(qpfile,trims):
     """Simply writes keyframes for use in x264 from a list of Trims."""
-    
+
     with open(qpfile, "w") as qpf:
         if trims[0][0] == 0:
             del trims[0]
         for trim in trims:
-            qpf.write('%s K\n' % trim[0])
+            qpf.write('{0} K\n'.format(trim[0]))
 
 if __name__ == '__main__':
     main(argv[1:])

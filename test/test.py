@@ -3,7 +3,7 @@
 from subprocess import check_output,CalledProcessError
 from re import search
 from os import rename, unlink
-from os.path import isfile
+from os.path import isfile, join as pjoin
 
 args = [
         r'-i audio.flac -vf 24000/1001 test.avs --test',
@@ -21,11 +21,11 @@ args = [
 stable = check_output('git tag',shell=True).decode()[:-1].split('\n')[-1]
 current = search('^\* (\w+)(?m)',check_output("git branch",shell=True).decode()[:-1]).group(1)
 
-check_output('git show %s:vfr.py > vfr.py' % stable,shell=True)
-check_output('git show %s:templates.py > templates.py' % stable,shell=True)
+check_output('git show {0}:vfr.py > vfr.py'.format(stable), shell=True)
+check_output('git show {0}:templates.py > templates.py'.format(stable), shell=True)
 try:
-    old = [check_output(r'python vfr.py %s' % command.format('old'),shell=True) for command in args]
-    new = [check_output(r'python ..\vfr.py %s' % command.format('new'),shell=True) for command in args]
+    old = [check_output(r'python3 vfr.py ' + command.format('old'), shell=True) for command in args]
+    new = [check_output(r'python3 {0} {1}'.format(pjoin('..', 'vfr.py'), command.format('new')), shell=True) for command in args]
     fails = []
     for i in range(len(old)):
         if old[i] != new[i]:
@@ -37,7 +37,7 @@ try:
                 old = oldf.readlines()
                 new = newf.readlines()
                 if old != new:
-                    fails.append('%s and %s are not identical.' % (f[0],f[1]))
+                    fails.append('{0} and {1} are not identical.'.format(f[0],f[1]))
     if len(fails) != 0:
         print('Failed:')
         [print(i) for i in fails]

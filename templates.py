@@ -19,7 +19,7 @@ class AutoMKVChapters:
             chf = open(chapfile+'.xml','w',encoding='utf-8')
             head = '<?xml version="1.0" encoding="UTF-8"?>\n<!-- <!DOCTYPE Tags SYSTEM "matroskatags.dtd"> -->\n'
             chf.write(head+'<Chapters>\n')
-            
+
             if self.num_editions > 1:
                 tagf = open(chapfile+'tags.xml','w')
                 tagf.write(head+'<Tags>\n')
@@ -28,21 +28,21 @@ class AutoMKVChapters:
 
             for ed in self.editions:
                 chf.write('\t<EditionEntry>\n')
-                chf.write('\t\t<EditionFlagHidden>%d</EditionFlagHidden>\n' % ed.hidden if ed.hidden else '')
-                chf.write('\t\t<EditionFlagDefault>%d</EditionFlagDefault>\n' % ed.default if ed.default else '')
-                chf.write('\t\t<EditionFlagOrdered>%d</EditionFlagOrdered>\n' % ed.ordered if ed.ordered else '')
-                chf.write('\t\t<EditionUID>%d</EditionUID>\n' % ed.uid)
-                
+                chf.write('\t\t<EditionFlagHidden>{0:d}</EditionFlagHidden>\n'.format(ed.hidden) if ed.hidden else '')
+                chf.write('\t\t<EditionFlagDefault>{0:d}</EditionFlagDefault>\n'.format(ed.default) if ed.default else '')
+                chf.write('\t\t<EditionFlagOrdered>{0:d}</EditionFlagOrdered>\n'.format(ed.ordered) if ed.ordered else '')
+                chf.write('\t\t<EditionUID>{0:d}</EditionUID>\n'.format(ed.uid))
+
                 if tagf:
                     tagf.write('\t<Tag>\n\t\t<Targets>\n')
-                    tagf.write('\t\t\t<EditionUID>%d</EditionUID>\n' % ed.uid)
+                    tagf.write('\t\t\t<EditionUID>{0:d}</EditionUID>\n'.format(ed.uid))
                     tagf.write('\t\t\t<TargetTypeValue>50</TargetTypeValue>\n\t\t</Targets>\n')
                     num_names = len(ed.name) if len(ed.name) < len(self.lang) else len(self.lang)
                     for i in range(num_names):
                         tagf.write('\t\t<Simple>\n\t\t\t<Name>TITLE</Name>\n')
-                        tagf.write('\t\t\t<String>%s</String>\n' % (ed.name[i] if ed.name[i] != '' else ed.name[i-1]))
-                        tagf.write('\t\t\t<TagLanguage>%s</TagLanguage>\n' % self.lang[i])
-                        tagf.write('\t\t\t<DefaultLanguage>%d</DefaultLanguage>\n' % (1 if i == 0 else 0))
+                        tagf.write('\t\t\t<String>{0}</String>\n'.format(ed.name[i] if ed.name[i] != '' else ed.name[i-1]))
+                        tagf.write('\t\t\t<TagLanguage>{0}</TagLanguage>\n'.format(self.lang[i]))
+                        tagf.write('\t\t\t<DefaultLanguage>{0:d}</DefaultLanguage>\n'.format(1 if i == 0 else 0))
                         tagf.write('\t\t</Simple>\n')
                     tagf.write('\t</Tag>\n')
 
@@ -51,18 +51,18 @@ class AutoMKVChapters:
                     num_names = len(ch.name) if len(ch.name) < len(self.lang) else len(self.lang)
                     for i in range(num_names):
                         chf.write('\t\t\t<ChapterDisplay>\n')
-                        chf.write('\t\t\t\t<ChapterString>%s</ChapterString>\n' % (ch.name[i] if ch.name[i] != '' else ch.name[i-1]))
-                        chf.write('\t\t\t\t<ChapterLanguage>%s</ChapterLanguage>\n' % self.lang[i] if self.lang[i] != 'eng' else '')
-                        chf.write('\t\t\t\t<ChapterCountry>%s</ChapterCountry>\n' % self.country[i] if i < len(self.country) else '')
+                        chf.write('\t\t\t\t<ChapterString>{0}</ChapterString>\n'.format(ch.name[i] if ch.name[i] != '' else ch.name[i-1]))
+                        chf.write('\t\t\t\t<ChapterLanguage>{0}</ChapterLanguage>\n'.format(self.lang[i]) if self.lang[i] != 'eng' else '')
+                        chf.write('\t\t\t\t<ChapterCountry>{0}</ChapterCountry>\n'.format(self.country[i]) if i < len(self.country) else '')
                         chf.write('\t\t\t</ChapterDisplay>\n')
-                    chf.write('\t\t\t<ChapterUID>%d</ChapterUID>\n' % ch.uid)
-                    chf.write('\t\t\t<ChapterTimeStart>%s</ChapterTimeStart>\n' % ch.start)
-                    chf.write('\t\t\t<ChapterTimeEnd>%s</ChapterTimeEnd>\n' % ch.end)
-                    chf.write('\t\t\t<ChapterFlagHidden>%d</ChapterFlagHidden>\n' % ch.hidden if ch.hidden != 0 else '')
-                    chf.write('\t\t\t<ChapterFlagEnabled>%d</ChapterFlagEnabled>\n' % ch.enabled if ch.enabled != 1 else '')
-                    chf.write('\t\t\t<ChapterSegmentUID format="hex">%s</ChapterSegmentUID>\n' % ch.suid if ch.suid else '')
+                    chf.write('\t\t\t<ChapterUID>{0:d}</ChapterUID>\n'.format(ch.uid))
+                    chf.write('\t\t\t<ChapterTimeStart>{0}</ChapterTimeStart>\n'.format(ch.start))
+                    chf.write('\t\t\t<ChapterTimeEnd>{0}</ChapterTimeEnd>\n'.format(ch.end))
+                    chf.write('\t\t\t<ChapterFlagHidden>{0:d}</ChapterFlagHidden>\n'.format(ch.hidden) if ch.hidden != 0 else '')
+                    chf.write('\t\t\t<ChapterFlagEnabled>{0:d}</ChapterFlagEnabled>\n'.format(ch.enabled) if ch.enabled != 1 else '')
+                    chf.write('\t\t\t<ChapterSegmentUID format="hex">{0}</ChapterSegmentUID>\n'.format(ch.suid) if ch.suid else '')
                     chf.write('\t\t</ChapterAtom>\n')
-                
+
                 chf.write('\t</EditionEntry>\n')
 
             chf.write('</Chapters>\n')
@@ -92,11 +92,11 @@ class AutoMKVChapters:
 
             # compensate for amkvc's fps assumption
             if self.fps in ('24','30'):
-                fps = '%s/1.001' % self.fps
+                fps = self.fps + '/1.001'
             else:
                 self.fps = str(fps)
             if self.ofps and self.ofps in ('24','30'):
-                ofps = '%s/1.001' % self.ofps
+                ofps = self.ofps + '/1.001'
             else:
                 ofps = str(self.ofps)
             Trims2, Trims2ts = parse_trims(avs, fps, ofps)[2:4]
@@ -178,8 +178,8 @@ class AutoMKVChapters:
             ed.num = i+1
             ed.chapters = []
             stuff = {}
-            
-            for k, v in config.items('edition%d' % ed.num):
+
+            for k, v in config.items('edition{0:d}'.format(ed.num)):
                 if k == 'default':
                     ed.default = int(v)
                 elif k == 'name':
@@ -205,7 +205,7 @@ class AutoMKVChapters:
                 cuid += 1
                 ch.uid = cuid
                 ch.num = j+1
-                
+
                 for k, v in stuff[j+1]:
                     if k == 'name':
                         ch.name = v.split(',')
@@ -227,7 +227,7 @@ class AutoMKVChapters:
                 elif ch.suid:
                     from os.path import isfile
                     from subprocess import check_output
-                    
+
                     suid_re = compile('^\| \+ Segment UID: (.*)(?m)')
                     duration_re = compile('^\| \+ Duration: \d+\.\d*s \((\d+:\d+:\d+.\d+)\)(?m)')
                     suid = None
