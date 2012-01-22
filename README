@@ -11,7 +11,7 @@ What it does (for now):
     Creates a qpfile to use with x264;
     Cuts and merges audio (as per split_aud, only using v2 timecodes instead of expecting cfr) (all options work as split_aud);
     No longer needs tcConv but converts v1 timecodes to v2 internally;
-    If requested, can output v2 timecodes from v1 and fps parsing. If --ofps is being used, v2 timecodes will use it.;
+    If requested, can output v2 timecodes from v1 and fps parsing. If --ofps is being used, v2 timecodes will use it;
     Can output a qpfile with converted frames meant to be used for an ivtc'd encode using non-ivtc'd frames (feature inspired by automkvchapters) (not completely accurate, obviously);
     Using FFmpegsource's CorrectNTSCRationalFramerate, this is actually more precise in the v2 timecodes it produces than tcConv;
     Accepts AutoMKVChapters-like templates.
