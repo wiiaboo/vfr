@@ -137,9 +137,9 @@ def main(args):
             merge = []
             for i in range(1,max_audio):
                 if (includefirst == True and i % 2 != 0) or (includefirst == False and i % 2 == 0):
-                    merge.append('"{0}.split-{1:3d}.mka"'.format(o.output, i))
-            #mergeCmd = '"%s" -o "%s" %s %s' % (mkvmerge,o.output, ' +'.join(merge), quiet)
-            mergeCmd = [mkvmerge, o.output, ' +'.join(merge)]
+                    merge.append('{0}{1}.split-{2:03d}.mka'.format('+' if len(merge) > 0 else '', o.output, i))
+            mergeCmd = [mkvmerge, '-o', o.output]
+            mergeCmd.extend(merge)
             if o.verbose: print('\nMerging: {0}\n'.format(mergeCmd))
             else: mergeCmd.append('-q')
 
@@ -151,7 +151,7 @@ def main(args):
                     exit("Failed to execute mkvmerge: {0:d}".format(mergeExec))
 
         if o.remove:
-            remove = ['{0}.split-{1:3d}.mka'.format(o.output, i) for i in range(1,max_audio)]
+            remove = ['{0}.split-{1:03d}.mka'.format(o.output, i) for i in range(1,max_audio)]
             if o.verbose: print('\nDeleting: {0}\n'.format(', '.join(remove)))
             if not o.test:
                 from os import unlink
