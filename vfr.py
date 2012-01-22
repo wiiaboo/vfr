@@ -121,9 +121,10 @@ def main(args):
         ret = delre.search(o.input)
         delay = '{0}:{1}'.format(tid, o.delay if o.delay else ret.group(1)) if o.delay or ret else None
 
-        cutCmd = [mkvmerge, '-o', o.output + '.split.mka', o.input, '--split', 'timecodes:' + cuttimes]
+        cutCmd = [mkvmerge, '-o', o.output + '.split.mka']
         if delay: cutCmd.extend(['--sync', delay])
         if sbr: cutCmd.extend(['--aac-is-sbr', sbr])
+        cutCmd.extend([o.input, '--split', 'timecodes:' + cuttimes])
         if o.verbose: print('Cutting: {0}\n'.format(' '.join(['"{0}"'.format(i) for i in cutCmd])))
         else: cutCmd.append('-q')
 
@@ -140,7 +141,7 @@ def main(args):
                     merge.append('{0}{1}.split-{2:03d}.mka'.format('+' if len(merge) > 0 else '', o.output, i))
             mergeCmd = [mkvmerge, '-o', o.output]
             mergeCmd.extend(merge)
-            if o.verbose: print('\nMerging: {0}\n'.format(mergeCmd))
+            if o.verbose: print('\nMerging: {0}\n'.format(' '.join(['"{0}"'.format(i) for i in mergeCmd])))
             else: mergeCmd.append('-q')
 
             if not o.test:
