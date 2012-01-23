@@ -79,7 +79,7 @@ class AutoMKVChapters:
                     qpfile = chapfile+'.qpfile'
                 write_qpfile(qpfile,self.kframes)
 
-        def connect_with_vfr(self,avs):
+        def connect_with_vfr(self,avs,label=None):
             """
             Connects templates.py with vfr.py, enabling its use outside of vfr.py.
             
@@ -99,7 +99,8 @@ class AutoMKVChapters:
                 ofps = self.ofps + '/1.001'
             else:
                 ofps = str(self.ofps)
-            Trims2, Trims2ts = parse_trims(avs, fps, ofps)[2:4]
+
+            Trims2, Trims2ts = parse_trims(avs, fps, ofps, label=label)[2:4]
             Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
 
             self.trims = Trims2ts
@@ -125,7 +126,7 @@ class AutoMKVChapters:
                 self.uid = 0
                 self.enabled = 1
 
-    def __init__(self, templatefile, output=None, avs=None, trims=None, kframes=None, uid=None):
+    def __init__(self, templatefile, output=None, avs=None, trims=None, kframes=None, uid=None, label=None):
         import configparser
         
         # Init config
@@ -162,7 +163,7 @@ class AutoMKVChapters:
                 self.num_editions = int(v)
 
         if avs:
-            self.connect_with_vfr(avs)
+            self.connect_with_vfr(avs, label)
         elif trims:
             self.trims = trims
             self.kframes = kframes
