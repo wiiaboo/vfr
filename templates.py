@@ -57,7 +57,7 @@ class AutoMKVChapters:
                         chf.write('\t\t\t</ChapterDisplay>\n')
                     chf.write('\t\t\t<ChapterUID>{0:d}</ChapterUID>\n'.format(ch.uid))
                     chf.write('\t\t\t<ChapterTimeStart>{0}</ChapterTimeStart>\n'.format(ch.start))
-                    chf.write('\t\t\t<ChapterTimeEnd>{0}</ChapterTimeEnd>\n'.format(ch.end))
+                    chf.write('\t\t\t<ChapterTimeEnd>{0}</ChapterTimeEnd>\n'.format(ch.end) if ch.end else '')
                     chf.write('\t\t\t<ChapterFlagHidden>{0:d}</ChapterFlagHidden>\n'.format(ch.hidden) if ch.hidden != 0 else '')
                     chf.write('\t\t\t<ChapterFlagEnabled>{0:d}</ChapterFlagEnabled>\n'.format(ch.enabled) if ch.enabled != 1 else '')
                     chf.write('\t\t\t<ChapterSegmentUID format="hex">{0}</ChapterSegmentUID>\n'.format(ch.suid) if ch.suid else '')
@@ -128,7 +128,7 @@ class AutoMKVChapters:
 
     def __init__(self, templatefile, output=None, avs=None, trims=None, kframes=None, uid=None, label=None):
         import configparser
-        
+
         # Init config
         config = configparser.ConfigParser()
         template = open(templatefile,encoding='utf-8')
@@ -136,12 +136,17 @@ class AutoMKVChapters:
         # Read template
         config.readfp(template)
         template.close()
-        
+
         # Template defaults
         self = self.Template()
         self.editions = []
         self.uid = uid if uid else self.uid
-        
+
+        # Set mkvinfo path
+        from vfr import mkvmerge
+        from os.path import dirname, join
+        mkvinfo_path = join(dirname(mkvmerge), 'mkvinfo')
+
         # Set placeholder for mkvinfo output
         mkv_globbed = False
         mkvinfo = {}
@@ -217,39 +222,39 @@ class AutoMKVChapters:
                     elif k == 'end':
                         ch.end = v
                     elif k == 'suid':
-                        ch.suid = v.lower().strip().replace('0x','').replace(' ','') if ret else 0
+                        ch.suid = v.strip() if ret else 0
                     elif k == 'hidden':
                         ch.hidden = int(v)
                     elif k == 'enabled':
                         ch.enabled = int(v)
 
+                from os.path import isfile
+                if ch.suid and not isfile(ch.suid):
+                    ch.suid = ch.suid.replace('0x','').lower().replace(' ','') 
+
                 if ch.chapter and not (ch.start and ch.end):
                     ch.start, ch.end = self.trims[ch.chapter-1] if self.trims else (ch.start, ch.end)
                 elif ch.suid:
-                    from os.path import isfile
                     from subprocess import check_output
 
-                    suid_re = compile('^\| \+ Segment UID: (.*)(?m)')
+                    suid_re = compile('^\| \+ Segment UID:(.*)(?m)')
                     duration_re = compile('^\| \+ Duration: \d+\.\d*s \((\d+:\d+:\d+.\d+)\)(?m)')
                     suid = None
+                    mkvfiles = []
                     if isfile(ch.suid):
-                        info = check_output(['mkvinfo','--output-charset','utf-8',ch.suid]).decode('utf-8')
-                        ret = suid_re.search(info)
-                        suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
-                        ret = duration_re.search(info)
-                        duration = ret.group(1) if ret else 0
-                        mkvinfo[suid] = {'file': file, 'duration': duration}
+                        mkvfiles = [ch.suid]
                     elif not mkv_globbed:
                         from glob import glob
                         mkvfiles = glob('*.mkv')
+                        mkv_globbed = True
+                    if mkvfiles:
                         for file in mkvfiles:
-                            info = check_output(['mkvinfo','--output-charset','utf-8',file]).decode('utf-8')
+                            info = check_output([mkvinfo_path, '--ui-language', 'en', '--output-charset', 'utf-8', file]).decode('utf-8')
                             ret = suid_re.search(info)
-                            suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
+                            ch.suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
                             ret = duration_re.search(info)
                             duration = ret.group(1) if ret else 0
-                            mkvinfo[suid] = {'file': file, 'duration': duration}
-                        mkv_globbed = True
+                            mkvinfo[ch.suid] = {'file': file, 'duration': duration}
                     if not (ch.start or ch.end):
                         ch.start = '00:00:00.000' if not ch.start else ch.start
                         ch.end = mkvinfo[ch.suid]['duration'] if not ch.end and (ch.suid in mkvinfo) else ch.end
