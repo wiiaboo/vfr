@@ -100,6 +100,7 @@ def main(args):
     # make audio cuts
     if o.input:
         from subprocess import call, check_output
+        from sys import getfilesystemencoding
 
         if Trims[0][0] == 0:
             includefirst = True
@@ -112,7 +113,7 @@ def main(args):
         # get info from mkvmerge
         ident = check_output([mkvmerge, "--identify-for-mmg", o.input])
         identre = compile("Track ID (\d+): audio( \(AAC\) \[aac_is_sbr:true\])?")
-        ret = identre.search(ident.decode()) if ident else None
+        ret = identre.search(ident.decode(getfilesystemencoding())) if ident else None
 
         tid = ret.group(1) if ret else '0'
         sbr = "0:1" if o.sbr or ret.group(2) else "0:0" if o.input.endswith("aac") else ""
