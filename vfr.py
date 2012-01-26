@@ -177,7 +177,7 @@ def main(args):
     if chapter_type:
 
         if chapter_type == 'MKV':
-            Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
+            Trims2ts = [(fmt_time(i[0]),fmt_time(i[1]) if i[1] != 0 else None) for i in Trims2ts]
 
         if o.template:
             from templates import AutoMKVChapters as amkvc
@@ -489,12 +489,12 @@ def parse_avs(avs, label=None, reverse=None):
     
     """
 
-    trimre = compile("(?<!#)trim\((\d+)\s*,\s*(\d+)\)(?i)")
+    trimre = compile("(?<!#)trim\((\d+)\s*,\s*(-?\d+)\)(?i)")
     Trims = []
 
     with open(avs) as avsfile:
         avs = avsfile.readlines()
-        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,\s*(\d+)\){1}".format(label if label else "trim", "" if label else "(?i)"))
+        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,\s*(-?\d+)\){1}".format(label if label else "trim", "" if label else "(?i)"))
         for line in avs if not reverse else reversed(avs):
             if findTrims.match(line):
                 Trims = trimre.findall(line)
@@ -527,7 +527,13 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None, reverse
     nt1 = len(Trims)
 
     # Parse timecodes/fps
-    tc, max = parse_tc(fps, int(Trims[-1][1])+2,otc)
+    last_frame = int(Trims[-1][1])
+    if last_frame < 0:
+        last_frame = int(Trims[-1][0]) - int(Trims[-1][1])-1
+    elif last_frame == 0:
+        last_frame = int(Trims[-1][0])
+
+    tc, max = parse_tc(fps, last_frame+2,otc)
     if tc[1] == 'vfr' and outfps:
         exit("Can't use --ofps with timecodes file input")
     if outfps and fps != outfps:
@@ -542,10 +548,22 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None, reverse
         fn1ts = get_ts(fn1,tc)
         fn1tsaud = get_ts(fn1,tc)
         fn2 = int(Trims[i][1])
-        fn2ts = get_ts(fn2+1,tc)
-        fn2tsaud = get_ts(fn2+1,tc)
-        adjacent = False
-        Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
+        if fn2 > 0:
+            fn2ts = get_ts(fn2+1,tc)
+            fn2tsaud = get_ts(fn2+1,tc)
+            adjacent = False
+            Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
+        elif fn2 < 0:
+            fn2 = fn1 - fn2-1
+            print(fn2)
+            fn2ts = get_ts(fn2+1,tc)
+            fn2tsaud = get_ts(fn2+1,tc)
+            adjacent = False
+            Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
+        else:
+            fn2ts = 0
+            fn2tsaud = 0
+            Trimsts.append((fmt_time(fn1ts),0))
 
         # Calculate offsets for non-continuous trims
         if i == 0:
@@ -570,14 +588,14 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None, reverse
             elif fn1 <= max:
                 audio.append(fmt_time(fn1tsaud))
 
-            if fn2 <= max:
+            if fn2 <= max and fn2 != 0:
                 audio.append(fmt_time(fn2tsaud))
 
         # Apply the offset to the trims
         fn1 -= offset
-        fn2 -= offset
+        fn2 -= offset if fn2 else 0
         fn1ts -= offsetts
-        fn2ts -= offsetts
+        fn2ts -= offsetts if fn2 else 0
 
         # Add trims and their timestamps to list
         Trims2.append([fn1,fn2])
