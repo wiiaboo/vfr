@@ -5,6 +5,8 @@
 *.mkv
 *.ass
 *.ffindex
+Thumbs.db
+*.bak
 .project
 .pydevproject
 .settings
