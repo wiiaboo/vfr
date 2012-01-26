@@ -374,9 +374,9 @@ def parse_tc(tcfile, max=0, otc=None,first=0):
                 for i in range(-sample,0):
                     average += round(float(v1[i])-float(v1[i-1]),6)
                 fps = correct_to_ntsc(Fraction.from_float(sample / average * 1000))
-                ret = convert_v1_to_v2([],max,fps,first=temp_max)
+                ret = convert_v1_to_v2([],max-len(v1)+1,fps,first=1)
                 if v1[-1][-1] is not '\n': v1[-1] += '\n'
-                v1 += ['{0:3.6f}\n'.format(i) for i in ret]
+                v1 += ['{0:3.6f}\n'.format(i + float(v1[-1])) for i in ret]
             timecodes = v1
 
     return (timecodes, type), max
