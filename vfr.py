@@ -542,7 +542,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None, reverse
         fn1ts = get_ts(fn1,tc)
         fn1tsaud = get_ts(fn1,tc)
         fn2 = int(Trims[i][1])
-        fn2ts = get_ts(fn2,tc)
+        fn2ts = get_ts(fn2+1,tc)
         fn2tsaud = get_ts(fn2+1,tc)
         adjacent = False
         Trimsts.append((fmt_time(fn1ts),fmt_time(fn2ts)))
