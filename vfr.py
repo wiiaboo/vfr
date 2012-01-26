@@ -45,6 +45,9 @@ def main(args):
         p.error("No avisynth script specified.")
     if not o.fps:
         o.fps = default_fps
+        ifps = False
+    else:
+        ifps = True
 
     #Determine chapter type
     if o.chapters:

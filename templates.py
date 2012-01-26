@@ -126,7 +126,7 @@ class AutoMKVChapters:
                 self.uid = 0
                 self.enabled = 1
 
-    def __init__(self, templatefile, output=None, avs=None, trims=None, kframes=None, uid=None, label=None):
+    def __init__(self, templatefile, output=None, avs=None, trims=None, kframes=None, uid=None, label=None, ifps=None):
         import configparser
 
         # Init config
@@ -167,7 +167,7 @@ class AutoMKVChapters:
             elif k == 'editions':
                 self.num_editions = int(v)
 
-        if avs:
+        if avs and not ifps:
             self.connect_with_vfr(avs, label)
         elif trims:
             self.trims = trims
@@ -245,7 +245,7 @@ class AutoMKVChapters:
                         mkvfiles = [ch.suid]
                     elif not mkv_globbed:
                         from glob import glob
-                        mkvfiles = glob('*.mkv')
+                        mkvfiles = glob('*.mkv') + glob(join(dirname(avs),'*.mkv'))
                         mkv_globbed = True
                     if mkvfiles:
                         for file in mkvfiles:
