@@ -36,6 +36,7 @@ def main(args):
     p.add_option('--merge', '-m', action="store_true", help='Merge cut files', dest="merge")
     p.add_option('--remove', '-r', action="store_true", help='Remove cut files', dest="remove")
     p.add_option('--delay', '-d', action="store", help="Set delay of audio (can be negative)", dest="delay")
+    p.add_option('--reverse', '-b', action="store_true", help="Reverse parsing of .avs", dest="reverse")
     p.add_option('--test', action="store_true", help="Test mode (do not create new files)", dest="test")
     p.add_option('--sbr', action="store_true", help="Set this if inputting an .aac and it's SBR/HE-AAC", dest="sbr")
     (o, a) = p.parse_args(args)
@@ -81,7 +82,7 @@ def main(args):
         print(status)
 
     # Get frame numbers and corresponding timecodes from avs
-    Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps, o.otc, o.input, o.label)
+    Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps, o.otc, o.input, o.label, o.reverse)
 
     nt2 = len(Trims2ts)
     if o.verbose:
@@ -473,7 +474,7 @@ def convert_fps(ofn,old,new,oldts=None):
     else:
         return newframes
 
-def parse_avs(avs, label=None):
+def parse_avs(avs, label=None, reverse=None):
     """Parse an avisynth file. Scours it for the first uncommented trim line.
     
     By default it looks for case-insensitive 'trim'. Using label, you can make it
@@ -490,7 +491,7 @@ def parse_avs(avs, label=None):
     with open(avs) as avsfile:
         avs = avsfile.readlines()
         findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,\s*(\d+)\){1}".format(label if label else "trim", "" if label else "(?i)"))
-        for line in avs:
+        for line in avs if not reverse else reversed(avs):
             if findTrims.match(line):
                 Trims = trimre.findall(line)
                 break
@@ -499,7 +500,7 @@ def parse_avs(avs, label=None):
 
     return Trims
 
-def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
+def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None, reverse=None):
     """Parse trims from an avisynth file.
 
     Returns 5 lists containing:
@@ -514,7 +515,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None):
 
     """
 
-    Trims = parse_avs(avs, label)
+    Trims = parse_avs(avs, label, reverse)
     audio = []
     Trimsts = []
     Trims2 = []
