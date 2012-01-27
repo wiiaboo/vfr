@@ -1,24 +1,29 @@
+vfr.py
+======
+
 Inspired on: Daiz's AutoMKVChapters, TheFluff's split_aud, BD_Chapters
 
 Needs: Python 3.1; MkvToolNix
 
-What it does (for now):
+What it does
+------------
 
-    Reads the first line of uncommented Trims from an .avs;
-    Uses timecodes files to get each trim's frame's timestamp;
-    Offsets the trims accordingly;
-    Creates a basic xml with Matroska chapters, x264 chapters if ending in 'x264.txt' or OGM chapters if any other extension is used;
-    Creates a qpfile to use with x264;
-    Cuts and merges audio (as per split_aud, only using v2 timecodes instead of expecting cfr) (all options work as split_aud);
-    No longer needs tcConv but converts v1 timecodes to v2 internally;
-    If requested, can output v2 timecodes from v1 and fps parsing. If --ofps is being used, v2 timecodes will use it;
-    Can output a qpfile with converted frames meant to be used for an ivtc'd encode using non-ivtc'd frames (feature inspired by automkvchapters) (not completely accurate, obviously);
-    Using FFmpegsource's CorrectNTSCRationalFramerate, this is actually more precise in the v2 timecodes it produces than tcConv;
-    Accepts AutoMKVChapters-like templates.
+* Reads the first line of uncommented Trims from an .avs;
+* Uses timecodes files to get each trim's frame's timestamp;
+* Offsets the trims accordingly;
+* Creates a basic xml with Matroska chapters, x264 chapters if ending in 'x264.txt' or OGM chapters if any other extension is used;
+* Creates a qpfile to use with x264;
+* Cuts and merges audio (as per split_aud, only using v2 timecodes instead of expecting cfr) (all options work as split_aud);
+* No longer needs tcConv but converts v1 timecodes to v2 internally;
+* If requested, can output v2 timecodes from v1 and fps parsing. If --ofps is being used, v2 timecodes will use it;
+* Can output a qpfile with converted frames meant to be used for an ivtc'd encode using non-ivtc'd frames (feature inspired by automkvchapters) (not completely accurate, obviously);
+* Using FFmpegsource's CorrectNTSCRationalFramerate, this is actually more precise in the v2 timecodes it produces than tcConv;
+* Accepts AutoMKVChapters-like templates.
 
 Only the .avs with trims is required for vfr.py to run. You can use -v and/or --test to debug the script. All other options and arguments are optional.
 
-Usage:
+Usage
+-----
 
 vfr.py -i audio.aac -o audio.cut.mka -f 30/1.001 -l tRim -c chapters.xml -t template.txt \
 -n chnames.txt -q qpfile.qpf -vmr --ofps 24/1.001 --timecodes v2.txt --test trims.avs outtrims.avs
@@ -31,10 +36,11 @@ Optional:
 -o = Cut audio inside .mka
      Default: input.cut.mka
 -d = Manually set delay time for input audio (can be negative)
+-b = Reverse parsing of .avs (from bottom to top)
 -f = Frames per second or timecodes file if vfr input
      (takes "25", "24000/1001", "30000:1001", "24/1.001" and "30:1.001" as cfr input)
      Default: 30000/1001
--l = Look for a trim() statement only on lines starting with LABEL, interpreted as a regular expression.
+-l = Look for a line starting with a case-sensitive trim() or case-insensitive comment succeeding the trims, interpreted as a regular expression.
      Default: case insensitive trim
 -c = Chapters file. If extension is 'xml', outputs MKV Chapters;
      if extension is 'x264.txt', outputs x264 Chapters; else, outputs OGM Chapters
@@ -49,11 +55,12 @@ Optional:
 --ofps = Output FPS (used in qpfile, v2 timecodes and avs export)
          Default: -f
 --timecodes = Output v2 timecodes (from fps and v1 parsing) (if using --ofps, outputs v2 timecodes using this)
+--sbr = Set this if inputting an .aac and it's SBR/HE-AAC
 --test = Test Mode (doesn't create new files)
 outtrims.avs = If chapparse.py is present, outputs .avs with offset and converted trims
 
 To do:
-- optimize code and/or improve its legibility
+* Optimize code and/or improve its legibility
 
 Known issues:
-- Conversion from a different input fps to output fps is not accurate (probably no way it can ever be fixed)
+* Conversion from a different input fps to output fps is not accurate (probably no way it can ever be fixed)
