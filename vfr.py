@@ -492,9 +492,20 @@ def parse_avs(avs, label=None, reverse=None):
     trimre = compile("(?<!#)trim\((\d+)\s*,\s*(-?\d+)\)(?i)")
     Trims = []
 
+    trim_label = 'trim'
+    comment = ''
+    ignore_case = '(?i)'
+    
+    if label and label.lower() == 'trim':
+        trim_label = label
+        comment = ''
+        ignore_case = ''
+    elif label:
+        comment = '#.*' + label
+
     with open(avs) as avsfile:
         avs = avsfile.readlines()
-        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,\s*(-?\d+)\){1}".format(label if label else "trim", "" if label else "(?i)"))
+        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,\s*(-?\d+)\).*{1}{2}".format(trim_label, comment, ignore_case))
         for line in avs if not reverse else reversed(avs):
             if findTrims.match(line):
                 Trims = trimre.findall(line)
