@@ -109,7 +109,7 @@ class AutoMKVChapters:
         class Edition:
             def __init__(self):
                 self.default = 0
-                self.name = 'Default'
+                self.name = ['Default']
                 self.hidden = 0
                 self.ordered = 0
                 self.num_chapters = 1
@@ -117,7 +117,7 @@ class AutoMKVChapters:
 
         class Chapter:
             def __init__(self):
-                self.name = 'Chapter'
+                self.name = ['Chapter']
                 self.chapter = False
                 self.start = False
                 self.end = False
