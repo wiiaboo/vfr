@@ -101,7 +101,7 @@ class AutoMKVChapters:
                 ofps = str(self.ofps)
 
             Trims2, Trims2ts = parse_trims(avs, fps, ofps, label=label)[2:4]
-            Trims2ts = [(fmt_time(i[0]),fmt_time(i[1])) for i in Trims2ts]
+            Trims2ts = [(fmt_time(i[0]),fmt_time(i[1]) if i[1] != 0 else None) for i in Trims2ts]
 
             self.trims = Trims2ts
             self.kframes = Trims2
