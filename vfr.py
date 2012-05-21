@@ -118,8 +118,8 @@ def main(args):
 
     # Get frame numbers and corresponding timecodes from avs
     Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps,
-                                                o.otc, o.input, o.label,
-                                                o.reverse)
+                                                o.otc if not o.test else '',
+                                                o.input, o.label, o.reverse)
 
     nt2 = len(Trims2ts)
     if o.verbose:
