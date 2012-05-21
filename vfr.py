@@ -634,8 +634,8 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
     if outfps and fps != outfps:
         ofps = parse_tc(outfps, int(Trims[-1][1]) + 2)[0]
         if otc:
-            max = convert_fps([[int(Trims[-1][1])]], tc, ofps)
-            parse_tc(outfps, max + 2, otc + 'ofps.txt')
+            max = convert_fps([[int(Trims[-1][1])]], tc, ofps)[0]
+            parse_tc(outfps, max + 2, otc + '.ofps.txt')
 
     # Parse trims
     for i in range(nt1):
