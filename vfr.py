@@ -91,28 +91,28 @@ def main(args):
         o.output = '{0}.cut.mka'.format(ret[0])
 
     if o.verbose:
-        status = "Avisynth file:   {0}\n".format(a[0])
-        status += "Label:           {0}\n".format(o.label) if o.label else ""
-        status += ("Audio file:      {0}{1}\n".format(o.input, "(SBR)" if o.sbr
+        status = "Avisynth file: \t{0}\n".format(a[0])
+        status += "Label: \t\t{0}\n".format(o.label) if o.label else ""
+        status += ("Audio file: \t{0}{1}\n".format(o.input, "(SBR)" if o.sbr
                     else "") if o.input else "")
-        status += "Cut Audio file:  {0}\n".format(o.output) if o.output else ""
-        status += "Timecodes/FPS:   {0}{1}\n".format(o.fps, " to " + o.ofps if
+        status += "Cut Audio file: {0}\n".format(o.output) if o.output else ""
+        status += "Timecodes/FPS: \t{0}{1}\n".format(o.fps, " to " + o.ofps if
                     o.ofps else "") if o.ofps != o.fps else ""
-        status += "Output v2 Tc:    {0}\n".format(o.otc) if o.otc else ""
-        status += ("Chapters file:   {0}{1}\n".format(o.chapters,
+        status += "Output v2 Tc: \t{0}\n".format(o.otc) if o.otc else ""
+        status += ("Chapters file: \t{0}{1}\n".format(o.chapters,
                     " ({0})".format(chapter_type) if chapter_type else "") if
                     o.chapters else "")
-        status += ("Chapter Names:   {0}\n".format(o.chnames) if o.chnames
+        status += ("Chapter Names: \t{0}\n".format(o.chnames) if o.chnames
                     else "")
-        status += ("Template file:   {0}\n".format(o.template) if o.template
+        status += ("Template file: \t{0}\n".format(o.template) if o.template
                     else "")
-        status += "QP file:         {0}\n".format(o.qpfile) if o.qpfile else ""
+        status += "QP file: \t\t\t{0}\n".format(o.qpfile) if o.qpfile else ""
         status += "\n"
-        status += ("Merge/Rem files: {0}/{1}\n".format(o.merge, o.remove) if
+        status += ("Merge/Rem files: \t{0}/{1}\n".format(o.merge, o.remove) if
                     o.merge or o.remove else "")
-        status += ("Verbose:         {0}\n".format(o.verbose) if o.verbose
+        status += ("Verbose: \t{0}\n".format(o.verbose) if o.verbose
                     else "")
-        status += "Test Mode:       {0}\n".format(o.test) if o.test else ""
+        status += "Test Mode: \t{0}\n".format(o.test) if o.test else ""
 
         print(status)
 
