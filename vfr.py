@@ -21,7 +21,7 @@ def main(args):
     p = OptionParser(description='Grabs avisynth trims and outputs chapter '
                      'file, qpfile and/or cuts audio (works with cfr and '
                      'vfr input)',
-                     version='VFR Chapter Creator 0.8.7',
+                     version='VFR Chapter Creator 0.9',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l', action="store", dest="label",
                  help="Look for a trim() statement or succeeding comment only "
@@ -144,7 +144,7 @@ def main(args):
         from subprocess import call, check_output
         from sys import getfilesystemencoding
 
-        if Trims[0][0] == 0:
+        if Trims[0][0] == '0':
             includefirst = True
             audio = audio[1:]
         else:
