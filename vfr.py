@@ -108,7 +108,7 @@ def main(args):
                     else "")
         status += "QP file: \t\t\t{0}\n".format(o.qpfile) if o.qpfile else ""
         status += "\n"
-        status += ("Merge/Rem files: \t{0}/{1}\n".format(o.merge, o.remove) if
+        status += ("Merge/Rem files:{0}/{1}\n".format(o.merge, o.remove) if
                     o.merge or o.remove else "")
         status += ("Verbose: \t{0}\n".format(o.verbose) if o.verbose
                     else "")
@@ -149,7 +149,19 @@ def main(args):
             audio = audio[1:]
         else:
             includefirst = False
-        cuttimes = ','.join(audio)
+            cuttimes = []
+
+        # get mkvmerge version
+        mkvmerge_version = check_output([mkvmerge, "--version"])
+        parts_able = mkvmerge_version.startswith(b"mkvmerge v5.6")
+
+        if parts_able:
+            if includefirst:
+                cuttimes = ['-{}'.format(audio.pop(0))]
+            cuttimes = ',+'.join(cuttimes + ['{}-{}'.format(audio[i],
+                        audio[i + 1]) for i in range(0,len(audio),2)])
+        else:
+            cuttimes = ','.join(audio)
         max_audio = len(audio) + 2
 
         # get info from mkvmerge
@@ -169,12 +181,20 @@ def main(args):
         delay = ('{0}:{1}'.format(tid, o.delay if o.delay else ret.group(1))
                 if o.delay or ret else None)
 
-        cutCmd = [mkvmerge, '-o', o.output + '.split.mka']
+        cutCmd = [mkvmerge, '-o', o.output]
+        if not parts_able:
+            cutCmd[-1] += '.split.mka'
         if delay:
             cutCmd.extend(['--sync', delay])
         if sbr:
             cutCmd.extend(['--aac-is-sbr', sbr])
-        cutCmd.extend([o.input, '--split', 'timecodes:' + cuttimes])
+        cutCmd.extend([o.input, '--split'])
+
+        if parts_able:
+            cutCmd.extend(['parts:' + cuttimes])
+        else:
+            cutCmd.extend(['timecodes:' + cuttimes])
+
         if o.verbose:
             print('Cutting: {0}\n'.format(
                         ' '.join(['"{0}"'.format(i) for i in cutCmd])))
@@ -187,7 +207,7 @@ def main(args):
                 print("Mkvmerge exited with warnings: {0:d}".format(cutExec))
             elif cutExec == 2:
                 exit("Failed to execute mkvmerge: {0:d}".format(cutExec))
-        if o.merge:
+        if o.merge and not parts_able:
             merge = []
             for i in range(1, max_audio):
                 if ((includefirst == True and i % 2 != 0) or
@@ -210,7 +230,7 @@ def main(args):
                 elif mergeExec == 2:
                     exit("Failed to execute mkvmerge: {0:d}".format(mergeExec))
 
-        if o.remove:
+        if o.remove and not parts_able:
             remove = ['{0}.split-{1:03d}.mka'.format(o.output, i) for
                         i in range(1, max_audio)]
             if o.verbose:
