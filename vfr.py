@@ -26,6 +26,8 @@ def main(args):
     p.add_option('--label', '-l', action="store", dest="label",
                  help="Look for a trim() statement or succeeding comment only "
                  "on lines matching LABEL. Default: case insensitive trim")
+    p.add_option('--line', '-g', action="store", type="int", dest="line",
+                 help="Specify directly the line used")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut',
                  dest="input")
     p.add_option('--output', '-o', action="store",
@@ -93,6 +95,9 @@ def main(args):
     if o.verbose:
         status = "Avisynth file: \t{0}\n".format(a[0])
         status += "Label: \t\t{0}\n".format(o.label) if o.label else ""
+        status += ("Parsing order: \t{0}\n".format("Bottom to top" if 
+                    o.reverse else "Top to bottom"))
+        status += "Line: \t\t{0}\n".format(o.line) if o.line else ""
         status += ("Audio file: \t{0}{1}\n".format(o.input, "(SBR)" if o.sbr
                     else "") if o.input else "")
         status += "Cut Audio file: {0}\n".format(o.output) if o.output else ""
@@ -118,8 +123,8 @@ def main(args):
 
     # Get frame numbers and corresponding timecodes from avs
     Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps,
-                                                o.otc if not o.test else '',
-                                                o.input, o.label, o.reverse)
+                                           o.otc if not o.test else '', o.input,
+                                           o.label, o.reverse, o.line)
 
     nt2 = len(Trims2ts)
     if o.verbose:
@@ -575,7 +580,7 @@ def convert_fps(ofn, old, new, oldts=None):
         return newframes
 
 
-def parse_avs(avs, label=None, reverse=None):
+def parse_avs(avs, label=None, reverse=None, line_number=None):
     """Parse an avisynth file. Scours it for the first uncommented trim line.
     
     By default it looks for case-insensitive 'trim'. Using label, you can make
@@ -595,6 +600,8 @@ def parse_avs(avs, label=None, reverse=None):
     comment = ''
     ignore_case = '(?i)'
     
+    if line_number:
+        label = None
     if label and label.lower() == 'trim':
         trim_label = label
         comment = ''
@@ -604,21 +611,29 @@ def parse_avs(avs, label=None, reverse=None):
 
     with open(avs) as avsfile:
         avs = avsfile.readlines()
-        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,"
-                            "\s*(-?\d+)\).*{1}{2}".format(trim_label, comment,
-                            ignore_case))
-        for line in avs if not reverse else reversed(avs):
-            if findTrims.match(line):
-                Trims = trimre.findall(line)
-                break
-        if not Trims:
-            exit("Error: Avisynth script has no uncommented trims")
+    findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,"
+                        "\s*(-?\d+)\).*{1}{2}".format(trim_label, comment,
+                        ignore_case))
+    if line_number:
+        avs = avs[line_number - 1:line_number]
+    for line in avs if not reverse else reversed(avs):
+        if findTrims.match(line):
+            Trims = trimre.findall(line)
+            break
+    if not Trims:
+        if label:
+            exit("Error: Avisynth script has no uncommented trims with label "
+                 "'{}'".format(label))
+        if line_number:
+            exit("Error: Avisynth script has no uncommented trims on line {}"
+                 .format(line_number))
+        exit("Error: Avisynth script has no uncommented trims")
 
     return Trims
 
 
 def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
-                reverse=None):
+                reverse=None, line_number=None):
     """Parse trims from an avisynth file.
 
     Returns 5 lists containing:
@@ -634,7 +649,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
 
     """
 
-    Trims = parse_avs(avs, label, reverse)
+    Trims = parse_avs(avs, label, reverse, line_number)
     audio = []
     Trimsts = []
     Trims2 = []

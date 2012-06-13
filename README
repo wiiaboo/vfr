@@ -42,6 +42,7 @@ Optional:
      Default: 30000/1001
 -l = Look for a line starting with a case-sensitive trim() or case-insensitive comment succeeding the trims, interpreted as a regular expression.
      Default: case insensitive trim
+-g = Specify directly the line used
 -c = Chapters file. If extension is 'xml', outputs MKV Chapters;
      if extension is 'x264.txt', outputs x264 Chapters; else, outputs OGM Chapters
 -n = Text file with chapter names, one per line; assumed to be UTF-8 without BOM
