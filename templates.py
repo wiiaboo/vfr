@@ -106,6 +106,51 @@ class AutoMKVChapters:
             self.trims = Trims2ts
             self.kframes = Trims2
 
+        def parse_mkv(self, path):
+            """Parse a Matroska file for SegmentUID and Duration"""
+            import binascii
+            import struct
+            
+            suid = tcscale = duration = 0
+            with open(path, 'rb') as file:
+                if file.read(4) != b'\x1A\x45\xDF\xA3': # not a Matroska file
+                    return suid, duration
+                chunk_size = 100000 # 100 kB
+                i = 0
+                while True:
+                    if suid and tcscale and duration:
+                        break
+                    bin = file.read(chunk_size)
+                    if not bin:
+                        break
+                    suid_pos = bin.find(b'\x73\xA4\x90') # \x90 -> 16 bytes
+                    if suid_pos != -1:
+                        suid_pos = 4 + i * chunk_size + suid_pos + 3
+                        file.seek(suid_pos)
+                        suid = binascii.hexlify(file.read(16)).decode()
+                    tcscale_pos = bin.find(b'\x2A\xD7\xB1\x83') # uint (3 bytes)
+                    if tcscale_pos != -1:
+                        tcscale_pos = 4 + i * chunk_size + tcscale_pos + 4
+                        file.seek(tcscale_pos)
+                        tcscale = int(binascii.hexlify(file.read(3)), 16)
+                    duration_pos = bin.find(b'\x44\x89\x84') # float (4 bytes)
+                    if duration_pos != -1:
+                        duration_pos = 4 + i * chunk_size + duration_pos + 3
+                        file.seek(duration_pos)
+                        duration = struct.unpack('>f', file.read(4))[0]
+                    if not duration: # double (8 bytes)
+                        duration_pos = bin.find(b'\x44\x89\x88')
+                        if duration_pos != -1:
+                            duration_pos = 4 + i * chunk_size + duration_pos + 3
+                            file.seek(duration_pos)
+                            duration = struct.unpack('>d', file.read(8))[0]
+                    if bin.find(b'\x1F\x43\xB6\x75') != -1:
+                        # segment info should be before the clusters
+                        break
+                    i += 1
+            duration = duration * tcscale / 1000000
+            return suid, duration
+
         class Edition:
             def __init__(self):
                 self.default = 0
@@ -143,9 +188,18 @@ class AutoMKVChapters:
         self.uid = uid if uid else self.uid
 
         # Set mkvinfo path
-        from vfr import mkvmerge
-        from os.path import dirname, join
-        mkvinfo_path = join(dirname(mkvmerge), 'mkvinfo')
+        from vfr import mkvmerge, parse_with_mkvinfo, fmt_time
+        from os.path import dirname, join, isfile
+        if parse_with_mkvinfo:
+            mkvinfo_path = join(dirname(mkvmerge), 'mkvinfo')
+            if not isfile(mkvinfo_path) and not isfile(mkvinfo_path + '.exe'):
+                import os
+                from subprocess import check_call, CalledProcessError
+                which = 'where' if os.name == 'nt' else 'which'
+                try:
+                    check_call([which, 'mkvinfo'])
+                except CalledProcessError:
+                    parse_with_mkvinfo = False
 
         # Set placeholder for mkvinfo output
         mkv_globbed = False
@@ -228,18 +282,12 @@ class AutoMKVChapters:
                     elif k == 'enabled':
                         ch.enabled = int(v)
 
-                from os.path import isfile
                 if ch.suid and not isfile(ch.suid):
                     ch.suid = ch.suid.replace('0x','').lower().replace(' ','') 
 
                 if ch.chapter and not (ch.start and ch.end):
                     ch.start, ch.end = self.trims[ch.chapter-1] if self.trims else (ch.start, ch.end)
                 elif ch.suid:
-                    from subprocess import check_output
-
-                    suid_re = compile('^\| \+ Segment UID:(.*)(?m)')
-                    duration_re = compile('^\| \+ Duration: \d+\.\d*s \((\d+:\d+:\d+.\d+)\)(?m)')
-                    suid = None
                     mkvfiles = []
                     if isfile(ch.suid):
                         mkvfiles = [ch.suid]
@@ -248,13 +296,23 @@ class AutoMKVChapters:
                         mkvfiles = glob('*.mkv') + glob(join(dirname(avs),'*.mkv'))
                         mkv_globbed = True
                     if mkvfiles:
-                        for file in mkvfiles:
-                            info = check_output([mkvinfo_path, '--ui-language', 'en', '--output-charset', 'utf-8', file]).decode('utf-8')
-                            ret = suid_re.search(info)
-                            ch.suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
-                            ret = duration_re.search(info)
-                            duration = ret.group(1) if ret else 0
-                            mkvinfo[ch.suid] = {'file': file, 'duration': duration}
+                        if parse_with_mkvinfo:
+                            from subprocess import check_output
+                            suid_re = compile('^\| \+ Segment UID:(.*)(?m)')
+                            duration_re = compile('^\| \+ Duration: \d+\.\d*s \((\d+:\d+:\d+.\d+)\)(?m)')
+                            for file in mkvfiles:
+                                info = check_output([mkvinfo_path, '--ui-language', 'en', '--output-charset', 'utf-8', file]).decode('utf-8')
+                                ret = suid_re.search(info)
+                                ch.suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
+                                ret = duration_re.search(info)
+                                duration = ret.group(1) if ret else 0
+                                mkvinfo[ch.suid] = {'file': file, 'duration': duration}
+                        else:
+                            for file in mkvfiles:
+                                ch.suid, duration = self.parse_mkv(file)
+                                mkvinfo[ch.suid] = {'file': file, 
+                                    'duration': fmt_time(duration * 10**6) 
+                                                if duration else 0}
                     if not (ch.start or ch.end):
                         ch.start = '00:00:00.000' if not ch.start else ch.start
                         ch.end = mkvinfo[ch.suid]['duration'] if not ch.end and (ch.suid in mkvinfo) else ch.end

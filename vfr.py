@@ -15,6 +15,10 @@ default_fps = "30000/1001"
 # Change the paths here if the programs aren't in your $PATH
 mkvmerge = r'mkvmerge'
 
+# Check to utilize mkvtoolnix for obtaining the uid and duration of the mkv 
+# files specified on templates, instead of letting this script parse them 
+# directly (faster).  Just in case the later fails.
+parse_with_mkvinfo = False
 
 def main(args):
     from optparse import OptionParser
