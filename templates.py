@@ -111,6 +111,14 @@ class AutoMKVChapters:
             import binascii
             import struct
             
+            def get_data_len(byte):
+                """Get the length (bytes) of the element data"""
+                n = ord(byte)
+                mask = 0b10000000
+                while not n & mask:
+                    mask >>= 1
+                return n & ~mask
+            
             suid = tcscale = duration = 0
             with open(path, 'rb') as file:
                 if file.read(4) != b'\x1A\x45\xDF\xA3': # not a Matroska file
@@ -128,11 +136,12 @@ class AutoMKVChapters:
                         suid_pos = 4 + i * chunk_size + suid_pos + 3
                         file.seek(suid_pos)
                         suid = binascii.hexlify(file.read(16)).decode()
-                    tcscale_pos = bin.find(b'\x2A\xD7\xB1\x83') # uint (3 bytes)
+                    tcscale_pos = bin.find(b'\x2A\xD7\xB1')
                     if tcscale_pos != -1:
-                        tcscale_pos = 4 + i * chunk_size + tcscale_pos + 4
+                        tcscale_pos = 4 + i * chunk_size + tcscale_pos + 3
                         file.seek(tcscale_pos)
-                        tcscale = int(binascii.hexlify(file.read(3)), 16)
+                        tcscale_len = get_data_len(file.read(1))
+                        tcscale = int(binascii.hexlify(file.read(tcscale_len)), 16)
                     duration_pos = bin.find(b'\x44\x89\x84') # float (4 bytes)
                     if duration_pos != -1:
                         duration_pos = 4 + i * chunk_size + duration_pos + 3

@@ -3,7 +3,7 @@ vfr.py
 
 Inspired on: Daiz's AutoMKVChapters, TheFluff's split_aud, BD_Chapters
 
-Needs: Python 3.1; MkvToolNix
+Needs: Python 3; MkvToolNix (for audio trimming)
 
 What it does
 ------------
