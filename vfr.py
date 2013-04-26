@@ -25,7 +25,7 @@ def main(args):
     p = OptionParser(description='Grabs avisynth trims and outputs chapter '
                      'file, qpfile and/or cuts audio (works with cfr and '
                      'vfr input)',
-                     version='VFR Chapter Creator 0.9',
+                     version='VFR Chapter Creator 0.9.1',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l', action="store", dest="label",
                  help="Look for a trim() statement or succeeding comment only "
@@ -161,14 +161,18 @@ def main(args):
             cuttimes = []
 
         # get mkvmerge version
-        mkvmerge_version = check_output([mkvmerge, "--version"])
-        parts_able = mkvmerge_version.startswith(b"mkvmerge v5.6")
+        get_mkvmerge_version = check_output([mkvmerge, "--version"]).decode()
+        ver = [int(n) for n in get_mkvmerge_version.split()[1][1:].split('.')]
+        parts_able = ver >= [5,6,0] # first version with --split parts
 
         if parts_able:
             if includefirst:
                 cuttimes = ['-{}'.format(audio.pop(0))]
-            cuttimes = ',+'.join(cuttimes + ['{}-{}'.format(audio[i],
-                        audio[i + 1]) for i in range(0,len(audio),2)])
+            if not includefirst and len(audio) == 1:
+                cuttimes = '{}-'.format(audio[0])
+            else:
+                cuttimes = ',+'.join(cuttimes + ['{}-{}'.format(audio[i],
+                           audio[i + 1]) for i in range(0,len(audio),2)])
         else:
             cuttimes = ','.join(audio)
         max_audio = len(audio) + 2
