@@ -659,6 +659,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
     Trims2 = []
     Trims2ts = []
     nt1 = len(Trims)
+    adjacent = False
 
     # Parse timecodes/fps
     last_frame = int(Trims[-1][1])
