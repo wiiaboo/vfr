@@ -15,8 +15,8 @@ default_fps = "30000/1001"
 # Change the paths here if the programs aren't in your $PATH
 mkvmerge = r'mkvmerge'
 
-# Check to utilize mkvtoolnix for obtaining the uid and duration of the mkv 
-# files specified on templates, instead of letting this script parse them 
+# Check to utilize mkvtoolnix for obtaining the uid and duration of the mkv
+# files specified on templates, instead of letting this script parse them
 # directly (faster).  Just in case the later fails.
 parse_with_mkvinfo = False
 
@@ -25,7 +25,7 @@ def main(args):
     p = OptionParser(description='Grabs avisynth trims and outputs chapter '
                      'file, qpfile and/or cuts audio (works with cfr and '
                      'vfr input)',
-                     version='VFR Chapter Creator 0.9.1',
+                     version='VFR Chapter Creator 0.9.2',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l', action="store", dest="label",
                  help="Look for a trim() statement or succeeding comment only "
@@ -66,6 +66,9 @@ def main(args):
                  help="Reverse parsing of .avs", dest="reverse")
     p.add_option('--test', action="store_true",
                  help="Test mode (do not create new files)", dest="test")
+    p.add_option('--IDR', '--idr', action="store_true",
+                 help="Set this to make qpfile with IDR frames instead of K frames",
+                 dest="IDR")
     p.add_option('--sbr', action="store_true",
                  help="Set this if inputting an .aac and it's SBR/HE-AAC",
                  dest="sbr")
@@ -99,7 +102,7 @@ def main(args):
     if o.verbose:
         status = "Avisynth file: \t{0}\n".format(a[0])
         status += "Label: \t\t{0}\n".format(o.label) if o.label else ""
-        status += ("Parsing order: \t{0}\n".format("Bottom to top" if 
+        status += ("Parsing order: \t{0}\n".format("Bottom to top" if
                     o.reverse else "Top to bottom"))
         status += "Line: \t\t{0}\n".format(o.line) if o.line else ""
         status += ("Audio file: \t{0}{1}\n".format(o.input, "(SBR)" if o.sbr
@@ -128,7 +131,7 @@ def main(args):
     # Get frame numbers and corresponding timecodes from avs
     Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps,
                                            o.otc if not o.test else '', o.input,
-                                           o.label, o.reverse, o.line)
+                                 f          o.label, o.reverse, o.line)
 
     nt2 = len(Trims2ts)
     if o.verbose:
@@ -144,7 +147,7 @@ def main(args):
     # make qpfile
     if o.qpfile and not o.template:
         if not o.test:
-            write_qpfile(o.qpfile, Trims2)
+            write_qpfile(o.qpfile, Trims2, o.IDR)
         if o.verbose:
             print('Writing keyframes to {0}\n'.format(o.qpfile))
 
@@ -746,14 +749,14 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
     return Trims, Trimsts, Trims2, Trims2ts, audio
 
 
-def write_qpfile(qpfile, trims):
-    """Simply writes keyframes for use in x264 from a list of Trims."""
+def write_qpfile(qpfile, trims, idr):
+    """Writes keyframes for use in x264 from a list of Trims."""
 
     with open(qpfile, "w") as qpf:
         if trims[0][0] == 0:
             del trims[0]
         for trim in trims:
-            qpf.write('{0} K\n'.format(trim[0]))
+            qpf.write('{0} {1}\n'.format(trim[0], 'I' if idr else 'K'))
 
 if __name__ == '__main__':
     main(argv[1:])
