@@ -749,7 +749,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
     return Trims, Trimsts, Trims2, Trims2ts, audio
 
 
-def write_qpfile(qpfile, trims, idr):
+def write_qpfile(qpfile, trims, idr=None):
     """Writes keyframes for use in x264 from a list of Trims."""
 
     with open(qpfile, "w") as qpf:
