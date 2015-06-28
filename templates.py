@@ -94,7 +94,7 @@ class AutoMKVChapters:
             if self.fps in ('24','30'):
                 fps = self.fps + '/1.001'
             else:
-                self.fps = str(fps)
+                fps = str(self.fps)
             if self.ofps and self.ofps in ('24','30'):
                 ofps = self.ofps + '/1.001'
             else:
