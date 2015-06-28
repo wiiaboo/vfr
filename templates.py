@@ -323,7 +323,7 @@ class AutoMKVChapters:
                                     'duration': fmt_time(duration * 10**6) 
                                                 if duration else 0}
                     if not (ch.start or ch.end):
-                        ch.start = '00:00:00.000' if not ch.start else ch.start
+                        ch.start = fmt_time(0) if not ch.start else ch.start
                         ch.end = mkvinfo[ch.suid]['duration'] if not ch.end and (ch.suid in mkvinfo) else ch.end
 
                 ed.chapters.append(ch)
