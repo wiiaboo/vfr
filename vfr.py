@@ -626,13 +626,15 @@ def parse_avs(avs, label=None, reverse=None, line_number=None, clip=None):
         comment = '#.*' + label
     if clip:
         trimre = compile('(?<!#)(?:{0}\.trim\(|trim\({0}\s*,\s*)(\d+)\s*,\s*(-?\d+)\)(?i)'.format(clip))
+        findTrims = compile("(?<!#)[^#]*(?:{1}\.{0}\(|{0}\({1}\s*,\s*)(\d+)\s*,"
+                            "\s*(-?\d+)\).*{2}{3}".format(trim_label, clip, comment, ignore_case))
     else:
         trimre = compile('(?<!#)(?:\w+\.)?trim\((?:\w+\s*,\s*)?(\d+)\s*,\s*(-?\d+)\)(?i)'.format(clip))
+        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((?:\w+\s*,\s*)?(\d+)\s*,"
+                            "\s*(-?\d+)\).*{1}{2}".format(trim_label, comment, ignore_case))
 
     with open(avs) as avsfile:
         avs = avsfile.readlines()
-        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((?:\w+\s*,\s*)?(\d+)\s*,"
-                        "\s*(-?\d+)\).*{1}{2}".format(trim_label, comment, ignore_case))
     if line_number:
         avs = avs[line_number - 1:line_number]
     for line in avs if not reverse else reversed(avs):
