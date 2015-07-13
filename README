@@ -51,6 +51,7 @@ Optional:
 -v = Verbose mode
 -m = Merge split audio files
 -r = Remove split audio files after merging
+--clip = Only pick trims that are using this clip name. Ex: ClipX.Trim(0,1) or Trim(ClipX,0,1)
 --uid = Set base UID for --template/--chnames
 --chnames = Path to basic text containing chapter titles separated by newlines
 --ofps = Output FPS (used in qpfile, v2 timecodes and avs export)

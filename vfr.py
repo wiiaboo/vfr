@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 from sys import exit, argv
 from re import compile
@@ -25,11 +26,14 @@ def main(args):
     p = OptionParser(description='Grabs avisynth trims and outputs chapter '
                      'file, qpfile and/or cuts audio (works with cfr and '
                      'vfr input)',
-                     version='VFR Chapter Creator 0.9.4',
+                     version='VFR Chapter Creator 0.9.5',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l', action="store", dest="label",
                  help="Look for a trim() statement or succeeding comment only "
                  "on lines matching LABEL. Default: case insensitive trim")
+    p.add_option('--clip', action="store", dest="clip",
+                 help="Look for trims() using specific clip, like"
+                 "Trim(ClipX,0,100). Default: any trim")
     p.add_option('--line', '-g', action="store", type="int", dest="line",
                  help="Specify directly the line used")
     p.add_option('--input', '-i', action="store", help='Audio file to be cut',
@@ -102,6 +106,7 @@ def main(args):
     if o.verbose:
         status = "Avisynth file: \t{0}\n".format(a[0])
         status += "Label: \t\t{0}\n".format(o.label) if o.label else ""
+        status += "Clip name: \t{0}\n".format(o.clip) if o.clip else ""
         status += ("Parsing order: \t{0}\n".format("Bottom to top" if
                     o.reverse else "Top to bottom"))
         status += "Line: \t\t{0}\n".format(o.line) if o.line else ""
@@ -131,7 +136,7 @@ def main(args):
     # Get frame numbers and corresponding timecodes from avs
     Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps,
                                            o.otc if not o.test else '', o.input,
-                                           o.label, o.reverse, o.line)
+                                           o.label, o.reverse, o.line, o.clip)
 
     nt2 = len(Trims2ts)
     if o.verbose:
@@ -591,7 +596,7 @@ def convert_fps(ofn, old, new, oldts=None):
         return newframes
 
 
-def parse_avs(avs, label=None, reverse=None, line_number=None):
+def parse_avs(avs, label=None, reverse=None, line_number=None, clip=None):
     """Parse an avisynth file. Scours it for the first uncommented trim line.
     
     By default it looks for case-insensitive 'trim'. Using label, you can make
@@ -603,13 +608,13 @@ def parse_avs(avs, label=None, reverse=None, line_number=None):
     trim.
     
     """
-
-    trimre = compile("(?<!#)trim\((\d+)\s*,\s*(-?\d+)\)(?i)")
+    
     Trims = []
 
     trim_label = 'trim'
     comment = ''
     ignore_case = '(?i)'
+    trim_clip = ''
     
     if line_number:
         label = None
@@ -619,12 +624,15 @@ def parse_avs(avs, label=None, reverse=None, line_number=None):
         ignore_case = ''
     elif label:
         comment = '#.*' + label
+    if clip:
+        trimre = compile('(?<!#)(?:{0}\.trim\(|trim\({0}\s*,\s*)(\d+)\s*,\s*(-?\d+)\)(?i)'.format(clip))
+    else:
+        trimre = compile('(?<!#)(?:\w+\.)?trim\((?:\w+\s*,\s*)?(\d+)\s*,\s*(-?\d+)\)(?i)'.format(clip))
 
     with open(avs) as avsfile:
         avs = avsfile.readlines()
-    findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((\d+)\s*,"
-                        "\s*(-?\d+)\).*{1}{2}".format(trim_label, comment,
-                        ignore_case))
+        findTrims = compile("(?<!#)[^#]*\s*\.?\s*{0}\((?:\w+\s*,\s*)?(\d+)\s*,"
+                        "\s*(-?\d+)\).*{1}{2}".format(trim_label, comment, ignore_case))
     if line_number:
         avs = avs[line_number - 1:line_number]
     for line in avs if not reverse else reversed(avs):
@@ -638,13 +646,16 @@ def parse_avs(avs, label=None, reverse=None, line_number=None):
         if line_number:
             exit("Error: Avisynth script has no uncommented trims on line {}"
                  .format(line_number))
+        if clip:
+            exit("Error: Avisynth script has no uncommented trims with clip "
+                 "'{}'".format(clip))
         exit("Error: Avisynth script has no uncommented trims")
 
     return Trims
 
 
 def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
-                reverse=None, line_number=None):
+                reverse=None, line_number=None, clip=None):
     """Parse trims from an avisynth file.
 
     Returns 5 lists containing:
@@ -660,7 +671,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
 
     """
 
-    Trims = parse_avs(avs, label, reverse, line_number)
+    Trims = parse_avs(avs, label, reverse, line_number, clip)
     audio = []
     Trimsts = []
     Trims2 = []
