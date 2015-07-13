@@ -123,7 +123,7 @@ def main(args):
                     else "")
         status += ("Template file: \t{0}\n".format(o.template) if o.template
                     else "")
-        status += "QP file: \t\t\t{0}\n".format(o.qpfile) if o.qpfile else ""
+        status += "QP file: \t{0} ({1} frames)\n".format(o.qpfile, 'I' if o.IDR else 'K') if o.qpfile else ""
         status += "\n"
         status += ("Merge/Rem files:{0}/{1}\n".format(o.merge, o.remove) if
                     o.merge or o.remove else "")
@@ -762,7 +762,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
     return Trims, Trimsts, Trims2, Trims2ts, audio
 
 
-def write_qpfile(qpfile, trims, idr=None):
+def write_qpfile(qpfile, trims, idr=False):
     """Writes keyframes for use in x264 from a list of Trims."""
 
     with open(qpfile, "w") as qpf:
