@@ -284,7 +284,7 @@ def main(args):
             output = o.chapters[:-4] if not o.test else None
             chaps = amkvc(o.template, output=output, avs=a[0], trims=Trims2ts,
                             kframes=Trims2, uid=o.uid, label=o.label,
-                            ifps=ifps)
+                            ifps=ifps, clip=o.clip, idr=o.IDR)
 
         else:
             # Assign names to each chapter if --chnames
@@ -308,6 +308,7 @@ def main(args):
                 tmp.kframes = Trims2
                 if o.qpfile:
                     tmp.qpf = o.qpfile
+                    tmp.idr = o.IDR
                 ed = tmp.Edition()
                 ed.default = 1
                 ed.num_chapters = len(chapter_names)

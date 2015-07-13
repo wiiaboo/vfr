@@ -14,6 +14,7 @@ class AutoMKVChapters:
             self.fps = '30'
             self.ofps = '24'
             self.qpf = '0'
+            self.idr = False
             self.trims = None
             self.kframes = None
 
@@ -80,7 +81,7 @@ class AutoMKVChapters:
                     qpfile = self.qpf
                 else:
                     qpfile = chapfile+'.qpfile'
-                write_qpfile(qpfile,self.kframes)
+                write_qpfile(qpfile, self.kframes, self.idr)
 
         def connect_with_vfr(self,avs,label=None,clip=None):
             """
@@ -183,7 +184,9 @@ class AutoMKVChapters:
                 self.uid = 0
                 self.enabled = 1
 
-    def __init__(self, templatefile, output=None, avs=None, trims=None, kframes=None, uid=None, label=None, ifps=None, clip=None):
+    def __init__(self, templatefile, output=None, avs=None, trims=None,
+                 kframes=None, uid=None, label=None, ifps=None, clip=None,
+                 idr=False):
         try:
             import configparser
         except ImportError:
@@ -244,6 +247,7 @@ class AutoMKVChapters:
             self.kframes = kframes
         else:
             self.trims = False
+        self.idr = idr
 
         for i in range(self.num_editions):
             from re import compile
