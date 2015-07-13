@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+from __future__ import unicode_literals
+from io import open
+
 class AutoMKVChapters:
     class Template:
         def __init__(self):
@@ -181,11 +184,15 @@ class AutoMKVChapters:
                 self.enabled = 1
 
     def __init__(self, templatefile, output=None, avs=None, trims=None, kframes=None, uid=None, label=None, ifps=None, clip=None):
-        import configparser
+        try:
+            import configparser
+        except ImportError:
+            import ConfigParser as configparser
+        from io import open
 
         # Init config
         config = configparser.ConfigParser()
-        template = open(templatefile,encoding='utf-8')
+        template = open(templatefile, encoding='utf-8')
 
         # Read template
         config.readfp(template)

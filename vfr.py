@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from __future__ import unicode_literals
 from sys import exit, argv
 from re import compile
 from os.path import isfile, splitext
 from math import floor, ceil
 from fractions import Fraction
+from io import open
 
 exts = {
     "xml": "MKV",
