@@ -28,7 +28,7 @@ def main(args):
     p = OptionParser(description='Grabs avisynth trims and outputs chapter '
                      'file, qpfile and/or cuts audio (works with cfr and '
                      'vfr input)',
-                     version='VFR Chapter Creator 0.9.5',
+                     version='VFR Chapter Creator 0.10.0',
                      usage='%prog [options] infile.avs [outfile.avs]')
     p.add_option('--label', '-l', action="store", dest="label",
                  help="Look for a trim() statement or succeeding comment only "
