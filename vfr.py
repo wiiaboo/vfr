@@ -376,33 +376,28 @@ def truncate(ts, scale=0):
     return int(tts * 10 ** (scale - 2))
 
 
-def correct_to_ntsc(fps, ms=None):
+def correct_to_ntsc(fps, ms=False):
     """Rounds framerate to NTSC values if close enough.
-    
     Takes and returns a Rational number.
-    
-    Ported from FFmpegsource.
-    
+
+    Ported from FFMS2.
     """
     fps = Fraction(fps)
-    TempFPS = Fraction(fps.denominator, fps.numerator)
-    
-    if TempFPS.numerator == 1:
-        Num = TempFPS.denominator
-        Den = TempFPS.numerator
-    else:
-        FTimebase = TempFPS.numerator / TempFPS.denominator
-        NearestNTSC = floor(FTimebase * 1001 + 0.5) / 1001
-        SmallInterval = 1 / 120
+    fps_list = (24, 25, 30, 48, 50, 60, 100, 120)
 
-        if abs(FTimebase - NearestNTSC) < SmallInterval:
-            Num = int((1001 / FTimebase) + 0.5)
-            Den = 1001
+    for fps_idx in fps_list:
+        delta = (fps_idx - fps_idx / 1.001) / 2.0
+        if abs(fps - fps_idx) < delta:
+            fps = Fraction(fps_idx, 1)
+            break
+        elif (fps_idx % 25) and (abs(fps - fps_idx / 1.001) < delta):
+            fps = Fraction(fps_idx * 1000, 1001)
+            break
 
     if not ms:
-        return Fraction(Num, Den)
+        return fps
     else:
-        return Den / (Num / 1000)
+        return 1000 / fps
 
 
 def convert_v1_to_v2(v1, max, asm, v2=None, first=0):
