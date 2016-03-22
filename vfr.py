@@ -382,7 +382,7 @@ def correct_to_ntsc(fps, ms=False):
 
     Ported from FFMS2.
     """
-    fps = Fraction(fps)
+    fps = Fraction(fps).limit_denominator(10**6)
     fps_list = (24, 25, 30, 48, 50, 60, 100, 120)
 
     for fps_idx in fps_list:
@@ -397,7 +397,7 @@ def correct_to_ntsc(fps, ms=False):
     if not ms:
         return fps
     else:
-        return 1000 / fps
+        return float(1000 / fps)
 
 
 def convert_v1_to_v2(v1, max, asm, v2=None, first=0):
