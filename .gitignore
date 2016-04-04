@@ -3,6 +3,7 @@
 *.diff
 *.converted.txt
 *.mkv
+*.mka
 *.ass
 *.ffindex
 *.xml
