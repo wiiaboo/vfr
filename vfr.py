@@ -139,7 +139,8 @@ def main(args):
     # Get frame numbers and corresponding timecodes from avs
     Trims, Trimsts, Trims2, Trims2ts, audio = parse_trims(a[0], o.fps, o.ofps,
                                            o.otc if not o.test else '', o.input,
-                                           o.label, o.reverse, o.line, o.clip)
+                                           o.label, o.reverse, o.line, o.clip,
+                                           o.merge)
 
     nt2 = len(Trims2ts)
     if o.verbose:
@@ -179,10 +180,12 @@ def main(args):
         if parts_able:
             if includefirst:
                 cuttimes = ['-{}'.format(audio.pop(0))]
+
             if not includefirst and len(audio) == 1:
                 cuttimes = '{}-'.format(audio[0])
             else:
-                cuttimes = ',+'.join(cuttimes + ['{}-{}'.format(audio[i],
+                sep = ',+' if o.merge else ','
+                cuttimes = sep.join(cuttimes + ['{}-{}'.format(audio[i],
                            audio[i + 1]) for i in range(0,len(audio),2)])
         else:
             cuttimes = ','.join(audio)
@@ -656,7 +659,7 @@ def parse_avs(avs, label=None, reverse=None, line_number=None, clip=None):
 
 
 def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
-                reverse=None, line_number=None, clip=None):
+                reverse=None, line_number=None, clip=None, merge=True):
     """Parse trims from an avisynth file.
 
     Returns 5 lists containing:
@@ -736,7 +739,7 @@ def parse_trims(avs, fps, outfps=None, otc=None, input=None, label=None,
 
         if input:
             # Make list with timecodes to cut audio
-            if adjacent:
+            if adjacent and merge:
                 del audio[-1]
             elif fn1 <= max:
                 audio.append(fmt_time(fn1tsaud))
