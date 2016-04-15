@@ -162,109 +162,8 @@ def main(args):
 
     # make audio cuts
     if o.input:
-        from subprocess import call, check_output
-        from sys import getfilesystemencoding
-
-        if Trims[0][0] == '0':
-            includefirst = True
-            audio = audio[1:]
-        else:
-            includefirst = False
-            cuttimes = []
-
-        # get mkvmerge version
-        get_mkvmerge_version = check_output([mkvmerge, "--version"]).decode()
-        ver = [int(n) for n in get_mkvmerge_version.split()[1][1:].split('.')]
-        parts_able = ver >= [5,6,0] # first version with --split parts
-
-        if parts_able:
-            if includefirst:
-                cuttimes = ['-{}'.format(audio.pop(0))]
-
-            if not includefirst and len(audio) == 1:
-                cuttimes = '{}-'.format(audio[0])
-            else:
-                sep = ',+' if o.merge else ','
-                cuttimes = sep.join(cuttimes + ['{}-{}'.format(audio[i],
-                           audio[i + 1]) for i in range(0,len(audio),2)])
-        else:
-            cuttimes = ','.join(audio)
-        max_audio = len(audio) + 2
-
-        # get info from mkvmerge
-        ident = check_output([mkvmerge, "--identify-for-mmg", o.input])
-        identre = compile("Track ID (\d+): audio( \(AAC\) "
-                    "\[aac_is_sbr:true\])?")
-        ret = (identre.search(ident.decode(getfilesystemencoding())) if ident
-                else None)
-
-        tid = ret.group(1) if ret else '0'
-        sbr = ("0:1" if o.sbr or ret.group(2) else "0:0"
-                if o.input.endswith("aac") else "")
-
-        # determine delay
-        delre = compile('DELAY ([-]?\d+)')
-        ret = delre.search(o.input)
-        delay = ('{0}:{1}'.format(tid, o.delay if o.delay else ret.group(1))
-                if o.delay or ret else None)
-
-        cutCmd = [mkvmerge, '-o', o.output]
-        if not parts_able:
-            cutCmd[-1] += '.split.mka'
-        if delay:
-            cutCmd.extend(['--sync', delay])
-        if sbr:
-            cutCmd.extend(['--aac-is-sbr', sbr])
-        cutCmd.extend([o.input, '--split'])
-
-        if parts_able:
-            cutCmd.extend(['parts:' + cuttimes])
-        else:
-            cutCmd.extend(['timecodes:' + cuttimes])
-
-        if o.verbose:
-            print('Cutting: {0}\n'.format(
-                        ' '.join(['"{0}"'.format(i) for i in cutCmd])))
-        else:
-            cutCmd.append('-q')
-
-        if not o.test:
-            cutExec = call(cutCmd)
-            if cutExec == 1:
-                print("Mkvmerge exited with warnings: {0:d}".format(cutExec))
-            elif cutExec == 2:
-                exit("Failed to execute mkvmerge: {0:d}".format(cutExec))
-        if o.merge and not parts_able:
-            merge = []
-            for i in range(1, max_audio):
-                if ((includefirst == True and i % 2 != 0) or
-                (includefirst == False and i % 2 == 0)):
-                    merge.append('{0}{1}.split-{2:03d}.mka'.format('+' if
-                                    len(merge) > 0 else '', o.output, i))
-            mergeCmd = [mkvmerge, '-o', o.output]
-            mergeCmd.extend(merge)
-            if o.verbose:
-                print('\nMerging: {0}\n'.format(' '.join(['"{0}"'.format(i) for
-                        i in mergeCmd])))
-            else:
-                mergeCmd.append('-q')
-
-            if not o.test:
-                mergeExec = call(mergeCmd)
-                if mergeExec == 1:
-                    print("Mkvmerge exited with warnings: {0:d}".format(
-                            mergeExec))
-                elif mergeExec == 2:
-                    exit("Failed to execute mkvmerge: {0:d}".format(mergeExec))
-
-        if o.remove and not parts_able:
-            remove = ['{0}.split-{1:03d}.mka'.format(o.output, i) for
-                        i in range(1, max_audio)]
-            if o.verbose:
-                print('\nDeleting: {0}\n'.format(', '.join(remove)))
-            if not o.test:
-                from os import unlink
-                [unlink(i) if isfile(i) else True for i in remove]
+        split_audio(audio, o.input, o.output, o.delay, o.sbr, o.merge, o.remove,
+                    o.verbose, o.test)
 
     # make offseted avs
     if len(a) > 1:
@@ -347,7 +246,7 @@ def main(args):
                     o.chapters))
 
 
-def fmt_time(ts, msp=None):
+def fmt_time(ts, msp=False):
     """Converts nanosecond timestamps to timecodes.
     
     msp = Set timecodes for millisecond precision if True
@@ -772,6 +671,54 @@ def write_qpfile(qpfile, trims, idr=False):
             del trims[0]
         for trim in trims:
             qpf.write('{0} {1}\n'.format(trim[0], 'I' if idr else 'K'))
+
+def split_audio(trims, input_file, output_file=None, delay=None, sbr=False,
+                merge=True, remove=True, verbose=False, test=False):
+    from subprocess import call, check_output
+    from sys import getfilesystemencoding
+
+    sep = ',+' if merge else ','
+    final_part = ''
+    if len(trims) % 2 != 0:
+        final_part = '{}{}-'.format(sep if len(trims) > 1 else "", trims.pop())
+    cuttimes = sep.join(['{}-{}'.format(trims[i], trims[i + 1]) for i in range(0,len(trims),2)])
+    cuttimes += final_part
+
+    # check if aac file uses SBR
+    ident = check_output([mkvmerge, "--identify-for-mmg", input_file])
+    identre = compile("Track ID (\d+): audio( \(AAC\) \[aac_is_sbr:true\])?")
+    ret = (identre.search(ident.decode(getfilesystemencoding())) if ident
+            else None)
+    tid = ret.group(1) if ret else '0'
+    sbr = ("0:1" if sbr or ret.group(2) else "0:0"
+            if input_file.endswith("aac") else "")
+
+    # determine delay
+    delre = compile('DELAY ([-]?\d+)')
+    ret = delre.search(input_file)
+    delay = ('{0}:{1}'.format(tid, delay if delay else ret.group(1))
+            if delay or ret else None)
+
+    cutCmd = [mkvmerge, '-o', output_file]
+    cutCmd.extend([input_file, '--split'])
+    cutCmd.extend(['parts:' + cuttimes])
+    if delay:
+        cutCmd.extend(['--sync', delay])
+    if sbr:
+        cutCmd.extend(['--aac-is-sbr', sbr])
+
+    if verbose:
+        print('Cutting: {0}\n'.format(
+                    ' '.join(['"{0}"'.format(i) for i in cutCmd])))
+    else:
+        cutCmd.append('-q')
+
+    if not test:
+        cutExec = call(cutCmd)
+        if cutExec == 1:
+            print("Mkvmerge exited with warnings: {0:d}".format(cutExec))
+        elif cutExec == 2:
+            exit("Failed to execute mkvmerge: {0:d}".format(cutExec))
 
 if __name__ == '__main__':
     main(argv[1:])
