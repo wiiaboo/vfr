@@ -207,18 +207,8 @@ class AutoMKVChapters:
         self.uid = uid if uid else self.uid
 
         # Set mkvinfo path
-        from vfr import mkvmerge, parse_with_mkvinfo, fmt_time
+        from vfr import mkvmerge, parse_with_mkvmerge, fmt_time
         from os.path import dirname, join, isfile
-        if parse_with_mkvinfo:
-            mkvinfo_path = join(dirname(mkvmerge), 'mkvinfo')
-            if not isfile(mkvinfo_path) and not isfile(mkvinfo_path + '.exe'):
-                import os
-                from subprocess import check_call, CalledProcessError
-                which = 'where' if os.name == 'nt' else 'which'
-                try:
-                    check_call([which, 'mkvinfo'])
-                except CalledProcessError:
-                    parse_with_mkvinfo = False
 
         # Set placeholder for mkvinfo output
         mkv_globbed = False
@@ -316,17 +306,21 @@ class AutoMKVChapters:
                         mkvfiles = glob('*.mkv') + glob(join(dirname(avs),'*.mkv'))
                         mkv_globbed = True
                     if mkvfiles:
-                        if parse_with_mkvinfo:
+                        if parse_with_mkvmerge:
                             from subprocess import check_output
-                            suid_re = compile('^\| \+ Segment UID:(.*)(?m)')
-                            duration_re = compile('^\| \+ Duration: \d+\.\d*s \((\d+:\d+:\d+.\d+)\)(?m)')
+                            import json
                             for file in mkvfiles:
-                                info = check_output([mkvinfo_path, '--ui-language', 'en', '--output-charset', 'utf-8', file]).decode('utf-8')
-                                ret = suid_re.search(info)
-                                ch.suid = ret.group(1).lower().strip().replace('0x','').replace(' ','') if ret else 0
-                                ret = duration_re.search(info)
-                                duration = ret.group(1) if ret else 0
-                                mkvinfo[ch.suid] = {'file': file, 'duration': duration}
+                                info = check_output([mkvmerge, '-i', '-F', 'json',
+                                    '--output-charset', 'utf-8', file]).decode('utf-8')
+                                try:
+                                    props = json.loads(info).get("container", {}).get("properties", {})
+                                    ch.suid = props.get("segment_uid", 0)
+                                    duration = props.get("duration", 0)
+                                    mkvinfo[ch.suid] = {'file': file,
+                                        'duration': fmt_time(duration * 10**6)
+                                                    if duration else 0}
+                                except Exception:
+                                    pass
                         else:
                             for file in mkvfiles:
                                 ch.suid, duration = self.parse_mkv(file)

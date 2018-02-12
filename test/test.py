@@ -24,8 +24,8 @@ current = search('^\* (\w+)(?m)',check_output("git branch",shell=True).decode()[
 check_output('git show {0}:vfr.py > vfr.py'.format(stable), shell=True)
 check_output('git show {0}:templates.py > templates.py'.format(stable), shell=True)
 try:
-    old = [check_output(r'python3 vfr.py ' + command.format('old'), shell=True) for command in args]
-    new = [check_output(r'python3 {0} {1}'.format(pjoin('..', 'vfr.py'), command.format('new')), shell=True) for command in args]
+    old = [check_output(r'python vfr.py ' + command.format('old'), shell=True) for command in args]
+    new = [check_output(r'python {0} {1}'.format(pjoin('..', 'vfr.py'), command.format('new')), shell=True) for command in args]
     fails = []
     for i in range(len(old)):
         if old[i] != new[i]:

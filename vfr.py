@@ -21,7 +21,7 @@ mkvmerge = r'mkvmerge'
 # Check to utilize mkvtoolnix for obtaining the uid and duration of the mkv
 # files specified on templates, instead of letting this script parse them
 # directly (faster).  Just in case the later fails.
-parse_with_mkvinfo = False
+parse_with_mkvmerge = False
 
 def main(args):
     from optparse import OptionParser
