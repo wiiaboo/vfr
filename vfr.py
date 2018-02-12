@@ -676,6 +676,7 @@ def split_audio(trims, input_file, output_file=None, delay=None, sbr=False,
                 merge=True, remove=True, verbose=False, test=False):
     from subprocess import call, check_output
     from sys import getfilesystemencoding
+    import json
 
     sep = ',+' if merge else ','
     final_part = ''
@@ -685,13 +686,18 @@ def split_audio(trims, input_file, output_file=None, delay=None, sbr=False,
     cuttimes += final_part
 
     # check if aac file uses SBR
-    ident = check_output([mkvmerge, "--identify-for-mmg", input_file])
-    identre = compile("Track ID (\d+): audio( \(AAC\) \[aac_is_sbr:true\])?")
-    ret = (identre.search(ident.decode(getfilesystemencoding())) if ident
-            else None)
-    tid = ret.group(1) if ret else '0'
-    sbr = ("0:1" if sbr or ret.group(2) else "0:0"
-            if input_file.endswith("aac") else "")
+    if input_file.endswith("aac") and not sbr:
+        ident = check_output([mkvmerge, "--identify", "-F", "json", input_file])
+        try:
+            info = json.loads(ident)
+            for track in info["tracks"]:
+                if track.get("properties", {}).get("aac_is_sbr", False):
+                    sbr = str(track.get("id", 0))
+                    break
+        except Exception:
+            pass
+    elif sbr:
+        sbr = "0"
 
     # determine delay
     delre = compile('DELAY ([-]?\d+)')
