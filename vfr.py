@@ -685,19 +685,17 @@ def split_audio(trims, input_file, output_file=None, delay=None, sbr=False,
     cuttimes = sep.join(['{}-{}'.format(trims[i], trims[i + 1]) for i in range(0,len(trims),2)])
     cuttimes += final_part
 
-    # check if aac file uses SBR
-    if input_file.endswith("aac") and not sbr:
-        ident = check_output([mkvmerge, "--identify", "-F", "json", input_file])
-        try:
-            info = json.loads(ident)
-            for track in info["tracks"]:
-                if track.get("properties", {}).get("aac_is_sbr", False):
-                    sbr = str(track.get("id", 0))
-                    break
-        except Exception:
-            pass
-    elif sbr:
-        sbr = "0"
+    ident = check_output([mkvmerge, "--identify", "-F", "json", input_file])
+    tid = 0
+    try:
+        info = json.loads(ident)
+        for track in info["tracks"]:
+            if track.get("type") == "audio":
+                tid = track.get("id", 0)
+                sbr = track.get("properties", {}).get("aac_is_sbr", False)
+                break
+    except Exception:
+        pass
 
     # determine delay
     delre = compile('DELAY ([-]?\d+)')
@@ -711,7 +709,7 @@ def split_audio(trims, input_file, output_file=None, delay=None, sbr=False,
     if delay:
         cutCmd.extend(['--sync', delay])
     if sbr:
-        cutCmd.extend(['--aac-is-sbr', sbr])
+        cutCmd.extend(['--aac-is-sbr', str(tid)])
 
     if verbose:
         print('Cutting: {0}\n'.format(
