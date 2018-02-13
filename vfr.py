@@ -349,7 +349,7 @@ def parse_tc(tcfile, max=0, otc=None, first=0):
     """
 
     cfr_re = compile('(\d+(?:\.\d+)?)(?:/|:)?(\d+(?:\.\d+)?)?')
-    vfr_re = compile('# timecode format (v1|v2)')
+    vfr_re = compile('# time(?:code|stamp) format (v1|v2)')
 
     ret = cfr_re.search(tcfile)
     if ret and not isfile(tcfile):
